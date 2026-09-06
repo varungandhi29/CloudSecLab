@@ -1,0 +1,201 @@
+{
+  "level_id": 1,
+  "title": "What is Cloud Computing?",
+  "track": "beginner",
+  "category": "fundamentals",
+  "cloud_platform": "aws",
+  "xp_reward": 100,
+  "estimated_minutes": 20,
+  "prerequisites": [],
+
+  "theory": {
+    "intro": "Cloud computing is the delivery of computing services — servers, storage, databases, networking, software — over the internet. Instead of owning physical hardware, you rent computing power from a provider like AWS, Azure, or GCP.",
+    "sections": [
+      {
+        "heading": "The Three Cloud Service Models",
+        "type": "text",
+        "content": "IaaS (Infrastructure as a Service): You manage the OS and applications. AWS EC2 is an example. PaaS (Platform as a Service): The provider manages the infrastructure, you deploy your app. Azure App Service is an example. SaaS (Software as a Service): Fully managed software. Gmail is an example."
+      },
+      {
+        "heading": "The Shared Responsibility Model",
+        "type": "text",
+        "content": "This is the most important concept in cloud security. AWS is responsible for security OF the cloud — the physical hardware, the network, the hypervisor. YOU are responsible for security IN the cloud — your IAM policies, your S3 bucket permissions, your EC2 security groups. Most cloud breaches happen because customers misconfigure their own settings, not because AWS was hacked."
+      },
+      {
+        "heading": "Real World Example",
+        "type": "callout",
+        "callout_type": "warning",
+        "content": "2019 Capital One Breach: An attacker exploited a misconfigured WAF (Web Application Firewall) running on an EC2 instance. The misconfiguration gave the attacker access to the EC2 metadata service, which returned temporary AWS credentials. Using those credentials, the attacker accessed over 100 million customer records stored in S3. Fine: $80 million. Root cause: Customer misconfiguration, not an AWS vulnerability. This was entirely the customer's responsibility under the Shared Responsibility Model."
+      },
+      {
+        "heading": "The Four Cloud Deployment Models",
+        "type": "text",
+        "content": "Public Cloud: Resources owned and operated by a third-party provider (AWS, Azure, GCP). Private Cloud: Resources used exclusively by one organization. Hybrid Cloud: Mix of public and private. Multi-Cloud: Using multiple cloud providers simultaneously. Most enterprises use hybrid or multi-cloud, which increases the attack surface significantly."
+      },
+      {
+        "heading": "Why Cloud Security is Different",
+        "type": "text",
+        "content": "In traditional security, you protect a physical perimeter. In cloud security, there is no perimeter. Everything is API-driven. An attacker with valid credentials can operate from anywhere in the world. This is why identity and access management (IAM) is the most critical security control in cloud environments."
+      }
+    ],
+    "key_terms": [
+      {"term": "IaaS", "definition": "Infrastructure as a Service — you manage OS and above"},
+      {"term": "PaaS", "definition": "Platform as a Service — you manage application and data only"},
+      {"term": "SaaS", "definition": "Software as a Service — fully managed, you just use it"},
+      {"term": "Shared Responsibility Model", "definition": "AWS secures the cloud infrastructure; you secure everything you put in the cloud"},
+      {"term": "IAM", "definition": "Identity and Access Management — controls who can do what in your cloud"}
+    ]
+  },
+
+  "tasks": [
+    {
+      "task_number": 1,
+      "title": "Understanding the Shared Responsibility Model",
+      "description": "Read the theory above carefully. The Shared Responsibility Model is the foundation of every cloud security decision you will make.",
+      "question": {
+        "type": "multiple_choice",
+        "text": "A developer accidentally makes an S3 bucket publicly readable, exposing customer data. Under the AWS Shared Responsibility Model, who is responsible for this breach?",
+        "options": [
+          "AWS — they should have prevented public buckets by default",
+          "The developer/customer — S3 bucket permissions are the customer's responsibility",
+          "Both equally — AWS and the customer share equal blame",
+          "Neither — cloud breaches are acts of nature"
+        ],
+        "correct": 1,
+        "explanation": "Correct. S3 bucket permissions are entirely the customer's responsibility. AWS provides the tools to secure buckets (Block Public Access settings, bucket policies) but AWS does not configure them for you. The 2017 Booz Allen Hamilton breach, the 2019 Capital One breach, and hundreds of other incidents happened because customers misconfigured their own S3 permissions."
+      }
+    },
+    {
+      "task_number": 2,
+      "title": "Cloud Service Models",
+      "description": "Understanding which layer you are responsible for depends on which service model you are using.",
+      "question": {
+        "type": "multiple_choice",
+        "text": "Your company runs a web application on AWS EC2 instances. An attacker exploits a vulnerability in your application code. Which cloud service model are you using, and who is responsible for patching the application?",
+        "options": [
+          "SaaS — AWS is responsible for patching",
+          "PaaS — AWS patches the application automatically",
+          "IaaS — your company is responsible for patching the application",
+          "IaaS — AWS is responsible for patching everything"
+        ],
+        "correct": 2,
+        "explanation": "EC2 is IaaS. You are responsible for everything above the hypervisor — the operating system, the application code, the runtime. AWS only patches the underlying physical infrastructure. This is why patch management is critical in IaaS environments."
+      }
+    },
+    {
+      "task_number": 3,
+      "title": "Why Identity is the New Perimeter",
+      "description": "In cloud environments, compromising valid credentials is equivalent to physical access in traditional environments.",
+      "question": {
+        "type": "text_input",
+        "text": "In the 2019 Capital One breach, the attacker used a misconfigured service to obtain temporary AWS credentials. What service was exploited to get those credentials? (Hint: it returns metadata about EC2 instances)",
+        "correct_answer": "IMDS",
+        "accepted_answers": ["imds", "instance metadata service", "metadata service", "ec2 metadata", "169.254.169.254"],
+        "explanation": "The EC2 Instance Metadata Service (IMDS) at IP 169.254.169.254 returns information about the running instance — including temporary IAM credentials attached to the instance role. The attacker used an SSRF vulnerability in a WAF to query this endpoint and steal the credentials. AWS later introduced IMDSv2 to require session tokens, making this attack harder."
+      }
+    }
+  ],
+
+  "lab": {
+    "title": "Your First Cloud Security Recon",
+    "scenario": "You are a junior cloud security analyst. Your manager has asked you to audit the company's LocalStack test environment. Start by understanding what resources exist and what permissions they have.",
+    "objective": "Use the AWS CLI to list all IAM users in the environment and find which user has AdministratorAccess attached.",
+    "setup_commands": [
+      "aws --endpoint-url=http://localhost:4566 iam create-user --user-name alice",
+      "aws --endpoint-url=http://localhost:4566 iam create-user --user-name bob",
+      "aws --endpoint-url=http://localhost:4566 iam create-user --user-name svc-deploy",
+      "aws --endpoint-url=http://localhost:4566 iam attach-user-policy --user-name svc-deploy --policy-arn arn:aws:iam::aws:policy/AdministratorAccess",
+      "aws --endpoint-url=http://localhost:4566 iam attach-user-policy --user-name alice --policy-arn arn:aws:iam::aws:policy/ReadOnlyAccess"
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "instruction": "First, list all IAM users in the environment to see who exists",
+        "command": "aws --endpoint-url=http://localhost:4566 iam list-users",
+        "expected_output_contains": "alice",
+        "explanation": "This shows all IAM users. In a real audit, you would see all users in the AWS account. Here you should see alice, bob, and svc-deploy."
+      },
+      {
+        "step": 2,
+        "instruction": "Now check what policies are attached to each user. Start with alice",
+        "command": "aws --endpoint-url=http://localhost:4566 iam list-attached-user-policies --user-name alice",
+        "expected_output_contains": "ReadOnlyAccess",
+        "explanation": "Alice has ReadOnlyAccess — she can see resources but not modify them. This is appropriate for most users."
+      },
+      {
+        "step": 3,
+        "instruction": "Check bob's policies",
+        "command": "aws --endpoint-url=http://localhost:4566 iam list-attached-user-policies --user-name bob",
+        "expected_output_contains": "AttachedPolicies",
+        "explanation": "Bob has no policies attached. He cannot do anything in this environment."
+      },
+      {
+        "step": 4,
+        "instruction": "Check svc-deploy's policies — this is the service account",
+        "command": "aws --endpoint-url=http://localhost:4566 iam list-attached-user-policies --user-name svc-deploy",
+        "expected_output_contains": "AdministratorAccess",
+        "explanation": "svc-deploy has AdministratorAccess. This is the misconfiguration — a service account should never have full admin access. If this account is compromised, the attacker has unlimited access to everything."
+      }
+    ],
+    "validation": {
+      "type": "text_answer",
+      "question": "Which user has AdministratorAccess attached?",
+      "correct_answer": "svc-deploy",
+      "case_sensitive": false
+    },
+    "hints": [
+      "Use aws iam list-users to see all users first",
+      "Check each user with aws iam list-attached-user-policies --user-name USERNAME",
+      "The answer is the username, not the policy name"
+    ]
+  },
+
+  "forensics": {
+    "enabled": true,
+    "scenario": "After a suspected breach, you have been given the following CloudTrail log excerpt. Analyze it to understand what the attacker did.",
+    "log_entries": [
+      {
+        "eventTime": "2024-03-15T02:14:33Z",
+        "eventName": "ListUsers",
+        "userIdentity": {"type": "IAMUser", "userName": "svc-deploy"},
+        "sourceIPAddress": "185.220.101.42",
+        "userAgent": "aws-cli/2.0"
+      },
+      {
+        "eventTime": "2024-03-15T02:14:47Z",
+        "eventName": "ListAttachedUserPolicies",
+        "userIdentity": {"type": "IAMUser", "userName": "svc-deploy"},
+        "sourceIPAddress": "185.220.101.42",
+        "requestParameters": {"userName": "svc-deploy"}
+      },
+      {
+        "eventTime": "2024-03-15T02:15:12Z",
+        "eventName": "CreateAccessKey",
+        "userIdentity": {"type": "IAMUser", "userName": "svc-deploy"},
+        "sourceIPAddress": "185.220.101.42",
+        "requestParameters": {"userName": "alice"}
+      }
+    ],
+    "questions": [
+      {
+        "question_number": 1,
+        "text": "What was the source IP address of the attacker?",
+        "correct_answer": "185.220.101.42",
+        "hint": "Look at the sourceIPAddress field in any log entry"
+      },
+      {
+        "question_number": 2,
+        "text": "The attacker created an access key for another user. Which user did they target?",
+        "correct_answer": "alice",
+        "hint": "Look at the CreateAccessKey event's requestParameters"
+      },
+      {
+        "question_number": 3,
+        "text": "What attack technique does creating an access key for another user represent? (one word)",
+        "correct_answer": "persistence",
+        "accepted_answers": ["persistence", "backdoor", "lateral movement"],
+        "hint": "The attacker is creating a way to maintain access even if the original credentials are rotated"
+      }
+    ]
+  }
+}

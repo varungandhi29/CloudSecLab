@@ -1,0 +1,35 @@
+{
+  "exam_id": "master_final",
+  "title": "CloudSecLab Master Final Exam",
+  "track": "expert",
+  "unlocks_after_level": 100,
+  "duration_minutes": 180,
+  "passing_score": 80,
+  "max_attempts": 2,
+  "retry_wait_hours": 24,
+  "certificate_awarded": "CloudSecLab Certified Master Security Architect",
+  "theory_section": {
+    "questions": [],
+    "total_questions": 0,
+    "points_per_question": 0
+  },
+  "practical_section": {
+    "labs": [
+      {
+        "lab_id": 1,
+        "title": "Capital One Breach Scenario & Cloud SOC Incident Response",
+        "objective": "Complete full multi-step investigation: find compromised SSRF role, exfiltrated S3 bucket name, and attacker IP.",
+        "points": 100,
+        "setup_commands": [
+          "aws --endpoint-url=http://localhost:4566 s3 mb s3://capone-sensitive-data-2024"
+        ],
+        "validation": {
+          "type": "text_answer",
+          "correct_answer": "capone-sensitive-data-2024",
+          "case_sensitive": false
+        },
+        "no_hints": true
+      }
+    ]
+  }
+}

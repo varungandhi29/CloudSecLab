@@ -1,0 +1,159 @@
+{
+  "level_id": 13,
+  "title": "AWS Secrets Manager & Hardcoded Credentials Risk",
+  "track": "beginner",
+  "category": "secrets",
+  "cloud_platform": "aws",
+  "xp_reward": 100,
+  "estimated_minutes": 20,
+  "prerequisites": [
+    12
+  ],
+  "theory": {
+    "intro": "AWS Secrets Manager & Hardcoded Credentials Risk is a core security discipline in AWS cloud operations.",
+    "sections": [
+      {
+        "heading": "Understanding AWS Secrets Manager & Hardcoded Credentials Risk",
+        "type": "text",
+        "content": "In modern cloud environments, proper configuration of AWS Secrets Manager & Hardcoded Credentials Risk ensures privilege boundaries and access controls prevent unauthorized resource manipulation."
+      },
+      {
+        "heading": "Security Risks & Attack Vectors",
+        "type": "callout",
+        "callout_type": "warning",
+        "content": "Misconfigurations related to AWS Secrets Manager & Hardcoded Credentials Risk allow attackers to perform unauthorized reconnaissance, privilege escalation, and persistent access within your cloud tenant."
+      },
+      {
+        "heading": "Defense & Mitigation Strategies",
+        "type": "text",
+        "content": "Enforce strict principle of least privilege, continuous auditing via CloudTrail/Config, and automated guardrails."
+      }
+    ],
+    "key_terms": [
+      {
+        "term": "Least Privilege",
+        "definition": "Granting only minimum permissions required to perform job functions."
+      },
+      {
+        "term": "CloudTrail",
+        "definition": "AWS auditing service tracking API activity across account resources."
+      },
+      {
+        "term": "Audit Logging",
+        "definition": "Capturing and analyzing event logs for incident detection and forensics."
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "task_number": 1,
+      "title": "Core Security Principle: AWS Secrets Manager & Hardcoded Credentials Risk",
+      "description": "Evaluate the security impact of AWS Secrets Manager & Hardcoded Credentials Risk in cloud infrastructure.",
+      "question": {
+        "type": "multiple_choice",
+        "text": "What is the primary security risk associated with misconfiguring AWS Secrets Manager & Hardcoded Credentials Risk?",
+        "options": [
+          "Excessive latency in API network calls",
+          "Unauthorized privilege escalation or data exposure",
+          "Increased monthly cloud billing costs",
+          "Automatic deletion of cloud backups"
+        ],
+        "correct": 1,
+        "explanation": "Misconfiguring AWS Secrets Manager & Hardcoded Credentials Risk directly breaches privilege boundaries, allowing attackers to access unauthorized resources."
+      }
+    },
+    {
+      "task_number": 2,
+      "title": "Remediation Strategy",
+      "description": "Select the recommended defensive control.",
+      "question": {
+        "type": "multiple_choice",
+        "text": "Which security framework principle best prevents cloud misconfigurations?",
+        "options": [
+          "Default Allow All Access",
+          "Principle of Least Privilege",
+          "Hardcoded Administrator Keys",
+          "Disabling Audit Logging"
+        ],
+        "correct": 1,
+        "explanation": "The Principle of Least Privilege ensures identities are restricted to minimum required permissions."
+      }
+    }
+  ],
+  "lab": {
+    "title": "Hands-On Lab: AWS Secrets Manager & Hardcoded Credentials Risk",
+    "scenario": "You are auditing a cloud environment for compliance and misconfigurations related to AWS Secrets Manager & Hardcoded Credentials Risk.",
+    "objective": "Use the AWS CLI to inspect resources and identify the target configuration value.",
+    "setup_commands": [
+      "aws --endpoint-url=http://localhost:4566 secretsmanager create-secret --name prod/db/credentials_lvl013 --secret-string '{\"username\":\"admin\",\"password\":\"SecretPass123!\"}'"
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "instruction": "List secrets in AWS Secrets Manager.",
+        "command": "aws --endpoint-url=http://localhost:4566 secretsmanager list-secrets",
+        "expected_output_contains": "prod/db/credentials_lvl013",
+        "explanation": "Enumerates secrets stored in the account."
+      },
+      {
+        "step": 2,
+        "instruction": "Retrieve secret values for 'prod/db/credentials_lvl013'.",
+        "command": "aws --endpoint-url=http://localhost:4566 secretsmanager get-secret-value --secret-id prod/db/credentials_lvl013",
+        "expected_output_contains": "SecretPass123!",
+        "explanation": "Exposes sensitive credentials stored in plain text."
+      }
+    ],
+    "validation": {
+      "type": "text_answer",
+      "question": "What is the target resource or user name associated with this lab objective?",
+      "correct_answer": "prod/db/credentials",
+      "case_sensitive": false
+    },
+    "hints": [
+      "Use AWS CLI commands to list resources",
+      "Review the step commands for exact parameters"
+    ]
+  },
+  "forensics": {
+    "enabled": true,
+    "scenario": "CloudTrail logs captured suspicious API calls related to AWS Secrets Manager & Hardcoded Credentials Risk. Analyze the events below.",
+    "log_entries": [
+      {
+        "eventTime": "2024-03-15T04:10:12Z",
+        "eventName": "ListBuckets",
+        "userIdentity": {
+          "type": "IAMUser",
+          "userName": "analyst-lvl013"
+        },
+        "sourceIPAddress": "198.51.100.55",
+        "userAgent": "aws-cli/2.0"
+      },
+      {
+        "eventTime": "2024-03-15T04:12:45Z",
+        "eventName": "PutBucketAcl",
+        "userIdentity": {
+          "type": "IAMUser",
+          "userName": "analyst-lvl013"
+        },
+        "sourceIPAddress": "198.51.100.55",
+        "requestParameters": {
+          "target": "prod/db/credentials"
+        }
+      }
+    ],
+    "questions": [
+      {
+        "question_number": 1,
+        "text": "What was the source IP address of the suspicious request?",
+        "correct_answer": "198.51.100.55",
+        "hint": "Check the sourceIPAddress field in the audit log entry."
+      },
+      {
+        "question_number": 2,
+        "text": "What user identity executed the API calls?",
+        "correct_answer": "analyst-lvl013",
+        "hint": "Check the userIdentity.userName field."
+      }
+    ]
+  }
+}

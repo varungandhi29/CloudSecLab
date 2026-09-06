@@ -1,0 +1,62 @@
+{
+  "exam_id": "intermediate_final",
+  "title": "Intermediate Module Final Exam",
+  "track": "intermediate",
+  "unlocks_after_level": 50,
+  "duration_minutes": 90,
+  "passing_score": 70,
+  "max_attempts": 2,
+  "retry_wait_hours": 24,
+  "certificate_awarded": "CloudSecLab Intermediate Practitioner Certificate",
+  "theory_section": {
+    "questions": [
+      {
+        "id": 1,
+        "type": "multiple_choice",
+        "question": "Which action allows an IAM user to pass a role to an EC2 instance?",
+        "options": [
+          "iam:PassRole",
+          "iam:AssumeRole",
+          "sts:AssumeRole",
+          "iam:AttachRole"
+        ],
+        "correct": "iam:PassRole",
+        "points": 10
+      },
+      {
+        "id": 2,
+        "type": "multiple_choice",
+        "question": "How can IMDSv1 lead to credential exposure via SSRF?",
+        "options": [
+          "IMDSv1 requires static API keys",
+          "IMDSv1 does not require Session Token headers for metadata requests",
+          "IMDSv1 encrypts metadata with hardcoded keys",
+          "IMDSv1 runs on port 443"
+        ],
+        "correct": "IMDSv1 does not require Session Token headers for metadata requests",
+        "points": 10
+      }
+    ],
+    "total_questions": 2,
+    "points_per_question": 10
+  },
+  "practical_section": {
+    "labs": [
+      {
+        "lab_id": 1,
+        "title": "Privilege Escalation Analysis",
+        "objective": "Identify the vulnerable IAM user with iam:CreatePolicyVersion permission.",
+        "points": 40,
+        "setup_commands": [
+          "aws --endpoint-url=http://localhost:4566 iam create-user --user-name dev-esc-user"
+        ],
+        "validation": {
+          "type": "text_answer",
+          "correct_answer": "dev-esc-user",
+          "case_sensitive": false
+        },
+        "no_hints": true
+      }
+    ]
+  }
+}

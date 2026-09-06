@@ -1,0 +1,160 @@
+{
+  "level_id": 42,
+  "title": "S3 Bucket Policy Principal Wildcard Misconfigurations",
+  "track": "intermediate",
+  "category": "storage",
+  "cloud_platform": "aws",
+  "xp_reward": 150,
+  "estimated_minutes": 20,
+  "prerequisites": [
+    41
+  ],
+  "theory": {
+    "intro": "S3 Bucket Policy Principal Wildcard Misconfigurations is a core security discipline in AWS cloud operations.",
+    "sections": [
+      {
+        "heading": "Understanding S3 Bucket Policy Principal Wildcard Misconfigurations",
+        "type": "text",
+        "content": "In modern cloud environments, proper configuration of S3 Bucket Policy Principal Wildcard Misconfigurations ensures privilege boundaries and access controls prevent unauthorized resource manipulation."
+      },
+      {
+        "heading": "Security Risks & Attack Vectors",
+        "type": "callout",
+        "callout_type": "warning",
+        "content": "Misconfigurations related to S3 Bucket Policy Principal Wildcard Misconfigurations allow attackers to perform unauthorized reconnaissance, privilege escalation, and persistent access within your cloud tenant."
+      },
+      {
+        "heading": "Defense & Mitigation Strategies",
+        "type": "text",
+        "content": "Enforce strict principle of least privilege, continuous auditing via CloudTrail/Config, and automated guardrails."
+      }
+    ],
+    "key_terms": [
+      {
+        "term": "Least Privilege",
+        "definition": "Granting only minimum permissions required to perform job functions."
+      },
+      {
+        "term": "CloudTrail",
+        "definition": "AWS auditing service tracking API activity across account resources."
+      },
+      {
+        "term": "Audit Logging",
+        "definition": "Capturing and analyzing event logs for incident detection and forensics."
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "task_number": 1,
+      "title": "Core Security Principle: S3 Bucket Policy Principal Wildcard Misconfigurations",
+      "description": "Evaluate the security impact of S3 Bucket Policy Principal Wildcard Misconfigurations in cloud infrastructure.",
+      "question": {
+        "type": "multiple_choice",
+        "text": "What is the primary security risk associated with misconfiguring S3 Bucket Policy Principal Wildcard Misconfigurations?",
+        "options": [
+          "Excessive latency in API network calls",
+          "Unauthorized privilege escalation or data exposure",
+          "Increased monthly cloud billing costs",
+          "Automatic deletion of cloud backups"
+        ],
+        "correct": 1,
+        "explanation": "Misconfiguring S3 Bucket Policy Principal Wildcard Misconfigurations directly breaches privilege boundaries, allowing attackers to access unauthorized resources."
+      }
+    },
+    {
+      "task_number": 2,
+      "title": "Remediation Strategy",
+      "description": "Select the recommended defensive control.",
+      "question": {
+        "type": "multiple_choice",
+        "text": "Which security framework principle best prevents cloud misconfigurations?",
+        "options": [
+          "Default Allow All Access",
+          "Principle of Least Privilege",
+          "Hardcoded Administrator Keys",
+          "Disabling Audit Logging"
+        ],
+        "correct": 1,
+        "explanation": "The Principle of Least Privilege ensures identities are restricted to minimum required permissions."
+      }
+    }
+  ],
+  "lab": {
+    "title": "Hands-On Lab: S3 Bucket Policy Principal Wildcard Misconfigurations",
+    "scenario": "You are auditing a cloud environment for compliance and misconfigurations related to S3 Bucket Policy Principal Wildcard Misconfigurations.",
+    "objective": "Use the AWS CLI to inspect resources and identify the target configuration value.",
+    "setup_commands": [
+      "aws --endpoint-url=http://localhost:4566 iam create-user --user-name wildcard-dev",
+      "aws --endpoint-url=http://localhost:4566 iam attach-user-policy --user-name wildcard-dev --policy-arn arn:aws:iam::aws:policy/AdministratorAccess"
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "instruction": "List all IAM users in LocalStack to locate over-privileged accounts.",
+        "command": "aws --endpoint-url=http://localhost:4566 iam list-users",
+        "expected_output_contains": "wildcard-dev",
+        "explanation": "Identifies users created in the environment."
+      },
+      {
+        "step": 2,
+        "instruction": "Inspect attached policies for user 'wildcard-dev'.",
+        "command": "aws --endpoint-url=http://localhost:4566 iam list-attached-user-policies --user-name wildcard-dev",
+        "expected_output_contains": "AdministratorAccess",
+        "explanation": "Confirms the wildcard administrator policy assignment."
+      }
+    ],
+    "validation": {
+      "type": "text_answer",
+      "question": "What is the target resource or user name associated with this lab objective?",
+      "correct_answer": "wildcard-dev",
+      "case_sensitive": false
+    },
+    "hints": [
+      "Use AWS CLI commands to list resources",
+      "Review the step commands for exact parameters"
+    ]
+  },
+  "forensics": {
+    "enabled": true,
+    "scenario": "CloudTrail logs captured suspicious API calls related to S3 Bucket Policy Principal Wildcard Misconfigurations. Analyze the events below.",
+    "log_entries": [
+      {
+        "eventTime": "2024-03-15T04:10:12Z",
+        "eventName": "ListBuckets",
+        "userIdentity": {
+          "type": "IAMUser",
+          "userName": "analyst-lvl042"
+        },
+        "sourceIPAddress": "198.51.100.55",
+        "userAgent": "aws-cli/2.0"
+      },
+      {
+        "eventTime": "2024-03-15T04:12:45Z",
+        "eventName": "PutBucketAcl",
+        "userIdentity": {
+          "type": "IAMUser",
+          "userName": "analyst-lvl042"
+        },
+        "sourceIPAddress": "198.51.100.55",
+        "requestParameters": {
+          "target": "wildcard-dev"
+        }
+      }
+    ],
+    "questions": [
+      {
+        "question_number": 1,
+        "text": "What was the source IP address of the suspicious request?",
+        "correct_answer": "198.51.100.55",
+        "hint": "Check the sourceIPAddress field in the audit log entry."
+      },
+      {
+        "question_number": 2,
+        "text": "What user identity executed the API calls?",
+        "correct_answer": "analyst-lvl042",
+        "hint": "Check the userIdentity.userName field."
+      }
+    ]
+  }
+}

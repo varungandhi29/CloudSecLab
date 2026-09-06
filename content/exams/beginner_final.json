@@ -1,0 +1,93 @@
+{
+  "exam_id": "beginner_final",
+  "title": "Beginner Module Final Exam",
+  "track": "beginner",
+  "unlocks_after_level": 25,
+  "duration_minutes": 60,
+  "passing_score": 70,
+  "max_attempts": 2,
+  "retry_wait_hours": 24,
+  "certificate_awarded": "CloudSecLab Beginner Certificate",
+  "theory_section": {
+    "questions": [
+      {
+        "id": 1,
+        "type": "multiple_choice",
+        "question": "What does the Shared Responsibility Model mean in AWS?",
+        "options": [
+          "AWS handles all security",
+          "You handle all infrastructure hardware security",
+          "AWS secures the cloud infrastructure, customer secures data & configuration",
+          "Cloud security is optional"
+        ],
+        "correct": "AWS secures the cloud infrastructure, customer secures data & configuration",
+        "points": 10
+      },
+      {
+        "id": 2,
+        "type": "multiple_choice",
+        "question": "Which IAM component allows service-to-service permission delegation?",
+        "options": [
+          "IAM User",
+          "IAM Role",
+          "IAM Group",
+          "Inline Policy"
+        ],
+        "correct": "IAM Role",
+        "points": 10
+      },
+      {
+        "id": 3,
+        "type": "multiple_choice",
+        "question": "Which service logs all AWS API calls across account resources?",
+        "options": [
+          "CloudWatch",
+          "CloudTrail",
+          "AWS Config",
+          "VPC Flow Logs"
+        ],
+        "correct": "CloudTrail",
+        "points": 10
+      }
+    ],
+    "total_questions": 3,
+    "points_per_question": 10
+  },
+  "practical_section": {
+    "labs": [
+      {
+        "lab_id": 1,
+        "title": "Find the Overprivileged User",
+        "objective": "An IAM user has been granted AdministratorAccess. Find the username.",
+        "points": 35,
+        "setup_commands": [
+          "aws --endpoint-url=http://localhost:4566 iam create-user --user-name svc-deploy",
+          "aws --endpoint-url=http://localhost:4566 iam create-user --user-name readonly-audit",
+          "aws --endpoint-url=http://localhost:4566 iam attach-user-policy --user-name svc-deploy --policy-arn arn:aws:iam::aws:policy/AdministratorAccess"
+        ],
+        "validation": {
+          "type": "text_answer",
+          "correct_answer": "svc-deploy",
+          "case_sensitive": false
+        },
+        "no_hints": true
+      },
+      {
+        "lab_id": 2,
+        "title": "Identify Public S3 Bucket",
+        "objective": "One S3 bucket is publicly accessible. Find its name.",
+        "points": 35,
+        "setup_commands": [
+          "aws --endpoint-url=http://localhost:4566 s3 mb s3://internal-docs-private",
+          "aws --endpoint-url=http://localhost:4566 s3 mb s3://company-public-assets"
+        ],
+        "validation": {
+          "type": "text_answer",
+          "correct_answer": "company-public-assets",
+          "case_sensitive": false
+        },
+        "no_hints": true
+      }
+    ]
+  }
+}

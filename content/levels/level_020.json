@@ -1,0 +1,160 @@
+{
+  "level_id": 20,
+  "title": "GCP Cloud Storage Bucket Permissions",
+  "track": "beginner",
+  "category": "storage",
+  "cloud_platform": "gcp",
+  "xp_reward": 100,
+  "estimated_minutes": 20,
+  "prerequisites": [
+    19
+  ],
+  "theory": {
+    "intro": "GCP Cloud Storage Bucket Permissions is a core security discipline in GCP cloud operations.",
+    "sections": [
+      {
+        "heading": "Understanding GCP Cloud Storage Bucket Permissions",
+        "type": "text",
+        "content": "In modern cloud environments, proper configuration of GCP Cloud Storage Bucket Permissions ensures privilege boundaries and access controls prevent unauthorized resource manipulation."
+      },
+      {
+        "heading": "Security Risks & Attack Vectors",
+        "type": "callout",
+        "callout_type": "warning",
+        "content": "Misconfigurations related to GCP Cloud Storage Bucket Permissions allow attackers to perform unauthorized reconnaissance, privilege escalation, and persistent access within your cloud tenant."
+      },
+      {
+        "heading": "Defense & Mitigation Strategies",
+        "type": "text",
+        "content": "Enforce strict principle of least privilege, continuous auditing via CloudTrail/Config, and automated guardrails."
+      }
+    ],
+    "key_terms": [
+      {
+        "term": "Least Privilege",
+        "definition": "Granting only minimum permissions required to perform job functions."
+      },
+      {
+        "term": "CloudTrail",
+        "definition": "AWS auditing service tracking API activity across account resources."
+      },
+      {
+        "term": "Audit Logging",
+        "definition": "Capturing and analyzing event logs for incident detection and forensics."
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "task_number": 1,
+      "title": "Core Security Principle: GCP Cloud Storage Bucket Permissions",
+      "description": "Evaluate the security impact of GCP Cloud Storage Bucket Permissions in cloud infrastructure.",
+      "question": {
+        "type": "multiple_choice",
+        "text": "What is the primary security risk associated with misconfiguring GCP Cloud Storage Bucket Permissions?",
+        "options": [
+          "Excessive latency in API network calls",
+          "Unauthorized privilege escalation or data exposure",
+          "Increased monthly cloud billing costs",
+          "Automatic deletion of cloud backups"
+        ],
+        "correct": 1,
+        "explanation": "Misconfiguring GCP Cloud Storage Bucket Permissions directly breaches privilege boundaries, allowing attackers to access unauthorized resources."
+      }
+    },
+    {
+      "task_number": 2,
+      "title": "Remediation Strategy",
+      "description": "Select the recommended defensive control.",
+      "question": {
+        "type": "multiple_choice",
+        "text": "Which security framework principle best prevents cloud misconfigurations?",
+        "options": [
+          "Default Allow All Access",
+          "Principle of Least Privilege",
+          "Hardcoded Administrator Keys",
+          "Disabling Audit Logging"
+        ],
+        "correct": 1,
+        "explanation": "The Principle of Least Privilege ensures identities are restricted to minimum required permissions."
+      }
+    }
+  ],
+  "lab": {
+    "title": "Hands-On Lab: GCP Cloud Storage Bucket Permissions",
+    "scenario": "You are auditing a cloud environment for compliance and misconfigurations related to GCP Cloud Storage Bucket Permissions.",
+    "objective": "Use the AWS CLI to inspect resources and identify the target configuration value.",
+    "setup_commands": [
+      "aws --endpoint-url=http://localhost:4566 s3 mb s3://csl-data-bucket-lvl020",
+      "aws --endpoint-url=http://localhost:4566 s3api put-bucket-acl --bucket csl-data-bucket-lvl020 --acl public-read"
+    ],
+    "steps": [
+      {
+        "step": 1,
+        "instruction": "List all S3 buckets in the environment.",
+        "command": "aws --endpoint-url=http://localhost:4566 s3 ls",
+        "expected_output_contains": "csl-data-bucket-lvl020",
+        "explanation": "Queries S3 service to discover buckets."
+      },
+      {
+        "step": 2,
+        "instruction": "Inspect bucket ACL for 'csl-data-bucket-lvl020'.",
+        "command": "aws --endpoint-url=http://localhost:4566 s3api get-bucket-acl --bucket csl-data-bucket-lvl020",
+        "expected_output_contains": "Grantee",
+        "explanation": "Evaluates public access permissions on the bucket."
+      }
+    ],
+    "validation": {
+      "type": "text_answer",
+      "question": "What is the target resource or user name associated with this lab objective?",
+      "correct_answer": "csl-data-bucket-lvl020",
+      "case_sensitive": false
+    },
+    "hints": [
+      "Use AWS CLI commands to list resources",
+      "Review the step commands for exact parameters"
+    ]
+  },
+  "forensics": {
+    "enabled": true,
+    "scenario": "CloudTrail logs captured suspicious API calls related to GCP Cloud Storage Bucket Permissions. Analyze the events below.",
+    "log_entries": [
+      {
+        "eventTime": "2024-03-15T04:10:12Z",
+        "eventName": "ListBuckets",
+        "userIdentity": {
+          "type": "IAMUser",
+          "userName": "analyst-lvl020"
+        },
+        "sourceIPAddress": "198.51.100.55",
+        "userAgent": "aws-cli/2.0"
+      },
+      {
+        "eventTime": "2024-03-15T04:12:45Z",
+        "eventName": "PutBucketAcl",
+        "userIdentity": {
+          "type": "IAMUser",
+          "userName": "analyst-lvl020"
+        },
+        "sourceIPAddress": "198.51.100.55",
+        "requestParameters": {
+          "target": "csl-data-bucket-lvl020"
+        }
+      }
+    ],
+    "questions": [
+      {
+        "question_number": 1,
+        "text": "What was the source IP address of the suspicious request?",
+        "correct_answer": "198.51.100.55",
+        "hint": "Check the sourceIPAddress field in the audit log entry."
+      },
+      {
+        "question_number": 2,
+        "text": "What user identity executed the API calls?",
+        "correct_answer": "analyst-lvl020",
+        "hint": "Check the userIdentity.userName field."
+      }
+    ]
+  }
+}

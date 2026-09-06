@@ -1,0 +1,47 @@
+{
+  "exam_id": "advanced_final",
+  "title": "Advanced Module Final Exam",
+  "track": "advanced",
+  "unlocks_after_level": 75,
+  "duration_minutes": 120,
+  "passing_score": 75,
+  "max_attempts": 2,
+  "retry_wait_hours": 24,
+  "certificate_awarded": "CloudSecLab Advanced Specialist Certificate",
+  "theory_section": {
+    "questions": [
+      {
+        "id": 1,
+        "type": "multiple_choice",
+        "question": "What is the primary indicator of CloudTrail log tampering?",
+        "options": [
+          "Digest file hash mismatch during validation",
+          "Increased log delivery frequency",
+          "VPC Flow Log byte counter reset",
+          "KMS key rotation"
+        ],
+        "correct": "Digest file hash mismatch during validation",
+        "points": 15
+      }
+    ],
+    "total_questions": 1,
+    "points_per_question": 15
+  },
+  "practical_section": {
+    "labs": [
+      {
+        "lab_id": 1,
+        "title": "CloudTrail Log Forensics",
+        "objective": "Analyze the log stream and find the backdoor user created by the attacker.",
+        "points": 85,
+        "setup_commands": [],
+        "validation": {
+          "type": "text_answer",
+          "correct_answer": "backdoor-admin",
+          "case_sensitive": false
+        },
+        "no_hints": true
+      }
+    ]
+  }
+}
