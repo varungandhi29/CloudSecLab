@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Shield, CheckCircle2, XCircle, Award, ExternalLink, ArrowLeft } from 'lucide-react'
-import axios from 'axios'
+import { api } from '../services/api'
 
 export const VerifyCertificate: React.FC = () => {
   const { id } = useParams<{ id: string }>()
@@ -11,7 +11,7 @@ export const VerifyCertificate: React.FC = () => {
   useEffect(() => {
     const checkCert = async () => {
       try {
-        const res = await axios.get(`/api/verify/${id}`)
+        const res = await api.get(`/verify/${id}`)
         setData(res.data)
       } catch (e) {
         setData({ valid: false })
@@ -30,7 +30,9 @@ export const VerifyCertificate: React.FC = () => {
     )
   }
 
-  const isValid = data?.valid
+  const isValid = data?.valid ?? data?.is_valid
+  const holderName = data?.holder_name || data?.user_full_name || 'Certificate Holder'
+  const certType = data?.certificate_type || 'Cloud Security'
 
   return (
     <div className="min-h-screen bg-bg-base text-text-primary font-sans flex flex-col items-center justify-center p-4 sm:p-6">
@@ -57,9 +59,9 @@ export const VerifyCertificate: React.FC = () => {
               <span className="text-[10px] font-mono font-bold text-accent-teal bg-accent-teal/10 border border-accent-teal/30 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                 Authentic Credential Verified
               </span>
-              <h2 className="text-lg font-bold text-text-primary font-mono pt-2">{data.holder_name}</h2>
+              <h2 className="text-lg font-bold text-text-primary font-mono pt-2">{holderName}</h2>
               <p className="text-xs text-text-muted capitalize">
-                {data.certificate_type} Cloud Security Practitioner Certificate
+                {certType} Cloud Security Practitioner Certificate
               </p>
             </div>
 

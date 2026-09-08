@@ -279,10 +279,47 @@ export const handleMockRequest = (url: string, method: string = 'GET', data?: an
     }
   }
 
+  // Health Check
+  if (cleanUrl === 'health' || cleanUrl === 'status') {
+    return {
+      status: 200,
+      data: { status: 'ok', version: '1.0.0' },
+    }
+  }
+
   // 8. Auth: Standard Password Login
   if (cleanUrl === 'auth/login') {
-    const identifier = data?.username_or_email || 'operator'
-    const user: User = {
+    const identifier = (data?.username_or_email || 'operator').trim()
+    const password = data?.password || ''
+
+    // Check localStorage for registered users
+    let matchedUser: User | null = null
+    try {
+      const regRaw = localStorage.getItem('cloudsec_registered_users')
+      if (regRaw) {
+        const regUsers = JSON.parse(regRaw)
+        if (Array.isArray(regUsers)) {
+          const found = regUsers.find(
+            (u: any) => u.username?.toLowerCase() === identifier.toLowerCase() || u.email?.toLowerCase() === identifier.toLowerCase()
+          )
+          if (found) {
+            matchedUser = {
+              id: found.id,
+              username: found.username,
+              email: found.email,
+              full_name: found.full_name,
+              total_xp: found.total_xp || 100,
+              current_level: found.current_level || 1,
+              streak_days: found.streak_days || 1,
+              country: found.country || 'US',
+              created_at: found.created_at || new Date().toISOString(),
+            }
+          }
+        }
+      }
+    } catch (e) {}
+
+    const user: User = matchedUser || {
       id: 'usr_login_' + Date.now(),
       username: identifier.includes('@') ? identifier.split('@')[0] : identifier,
       email: identifier.includes('@') ? identifier : (identifier + '@cloudseclab.io'),
@@ -305,17 +342,32 @@ export const handleMockRequest = (url: string, method: string = 'GET', data?: an
 
   // 9. Auth: Register
   if (cleanUrl === 'auth/register') {
+    const username = (data?.username || 'new_operator').trim()
+    const email = (data?.email || 'operator@cloudsec.io').trim()
+    const fullName = (data?.full_name || 'Cloud Security Analyst').trim()
+
     const user: User = {
       id: 'usr_reg_' + Date.now(),
-      username: data?.username || 'new_operator',
-      email: data?.email || 'operator@cloudsec.io',
-      full_name: data?.full_name || 'Cloud Security Analyst',
+      username,
+      email,
+      full_name: fullName,
       total_xp: 100,
       current_level: 1,
       streak_days: 1,
       country: 'US',
       created_at: new Date().toISOString(),
     }
+
+    // Persist to registered users list
+    try {
+      const regRaw = localStorage.getItem('cloudsec_registered_users')
+      const regUsers = regRaw ? JSON.parse(regRaw) : []
+      if (Array.isArray(regUsers)) {
+        regUsers.push({ ...user, password: data?.password })
+        localStorage.setItem('cloudsec_registered_users', JSON.stringify(regUsers))
+      }
+    } catch (e) {}
+
     return {
       status: 200,
       data: {
@@ -403,9 +455,11 @@ export const handleMockRequest = (url: string, method: string = 'GET', data?: an
     return {
       status: 200,
       data: {
+        valid: true,
         is_valid: true,
         verification_id: certId || 'CSL-2026-BGN-98F2A10B',
-        user_full_name: 'Google Cloud Security Specialist',
+        holder_name: 'Alex Vance',
+        user_full_name: 'Alex Vance',
         certificate_type: 'beginner',
         certificate_title: 'Cloud Security Fundamentals Associate',
         exam_score: 96.5,

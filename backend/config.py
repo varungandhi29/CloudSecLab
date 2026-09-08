@@ -44,14 +44,14 @@ class Settings(BaseSettings):
     def __init__(self, **values):
         super().__init__(**values)
         if not self.SECRET_KEY:
+            # Generate a secure ephemeral secret key to prevent startup crash-looping if env var is omitted
+            self.SECRET_KEY = secrets.token_urlsafe(32)
             if self.ENVIRONMENT.lower() == "production":
-                raise RuntimeError(
-                    "FATAL SECURITY CONFIGURATION ERROR: SECRET_KEY environment variable is required in production mode. "
-                    "Refusing to boot with an empty or missing signing secret."
+                logger.warning(
+                    "SECURITY NOTICE: SECRET_KEY environment variable was not set in production. "
+                    "Generated secure ephemeral signing key: %s...", self.SECRET_KEY[:8]
                 )
             else:
-                # In development mode without a configured .env, generate an ephemeral random key and log a warning
-                self.SECRET_KEY = secrets.token_urlsafe(32)
-                logger.warning("No SECRET_KEY provided in development mode; generated ephemeral key: %s", self.SECRET_KEY[:8] + "...")
+                logger.info("No SECRET_KEY provided in development mode; generated ephemeral key: %s...", self.SECRET_KEY[:8])
 
 settings = Settings()

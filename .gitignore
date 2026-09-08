@@ -12,3 +12,5 @@ localstack_data/
 *.pem
 *.key
 *.db
+
+.vercel

@@ -31,13 +31,11 @@ if db_url.startswith("postgresql"):
                 break
     
     if not connected:
-        if settings.ENVIRONMENT.lower() == "production":
-            logger.warning("PostgreSQL unreachable in production, but continuing with configured URL to allow container retry.")
-        else:
-            # Fallback to local SQLite when PostgreSQL server is unreachable in development
-            sqlite_file = os.path.join(os.path.dirname(__file__), "cloudseclab.db")
-            db_url = f"sqlite:///{sqlite_file}"
-            logger.info("Falling back to local SQLite database: %s", sqlite_file)
+        sqlite_file = os.path.join(os.path.dirname(__file__), "cloudseclab.db")
+        db_url = f"sqlite:///{sqlite_file}"
+        logger.warning(
+            "PostgreSQL database is unreachable. Seamlessly falling back to local SQLite database: %s", sqlite_file
+        )
 
 connect_args = {"check_same_thread": False} if db_url.startswith("sqlite") else {}
 

@@ -1,7 +1,16 @@
 import axios from 'axios'
 import { handleMockRequest } from './mockBackend'
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
+const getApiBaseUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim() !== '') {
+    const clean = envUrl.trim().replace(/\/+$/, '')
+    return clean.endsWith('/api') ? clean : `${clean}/api`
+  }
+  return '/api'
+}
+
+export const API_BASE_URL = getApiBaseUrl()
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
