@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ShieldAlert, Award, Clock, CheckCircle, AlertTriangle } from 'lucide-react'
+import { Award, Clock, AlertTriangle, ArrowLeft } from 'lucide-react'
 import { api } from '../services/api'
 import { Timer } from '../components/ui/Timer'
+import { notify } from '../store/toastStore'
 
 export const Exam: React.FC = () => {
   const { examId } = useParams<{ examId: string }>()
@@ -23,16 +24,16 @@ export const Exam: React.FC = () => {
         const detailRes = await api.get(`/exams/${examId}`)
         setExamData(detailRes.data)
 
-        const startRes = await api.post(`/exams/${examId}/start`)
+        await api.post(`/exams/${examId}/start`)
         const statusRes = await api.get(`/exams/${examId}/status`)
         setRemainingSeconds(statusRes.data.remaining_seconds || detailRes.data.duration_minutes * 60)
       } catch (err: any) {
-        alert(err.response?.data?.detail || 'Exam unavailable')
+        notify.error('Exam Unavailable', err.response?.data?.detail || 'Unable to start exam.')
         navigate('/levels')
       }
     }
     initExam()
-  }, [examId])
+  }, [examId, navigate])
 
   const handleTheoryChange = (qId: string, val: string) => {
     setAnswers((prev) => ({
@@ -54,59 +55,66 @@ export const Exam: React.FC = () => {
       const res = await api.post(`/exams/${examId}/submit`, { answers })
       navigate(`/exam/${examId}/result`, { state: { result: res.data } })
     } catch (e) {
-      alert('Error submitting exam. Please check connections.')
+      notify.error('Submission Failed', 'Failed to submit exam. Check network connection.')
       setSubmitting(false)
     }
   }
 
-  if (!examData) return null
+  if (!examData) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] font-mono text-xs text-text-muted">
+        Initializing Certification Exam Environment...
+      </div>
+    )
+  }
 
   const theoryQuestions = examData.theory_section?.questions || []
   const practicalLabs = examData.practical_section?.labs || []
 
   return (
-    <div className="min-h-screen bg-background text-gray-100 font-sans p-6">
+    <div className="min-h-screen bg-bg-base text-text-primary p-4 sm:p-6 font-sans text-xs">
       {/* Exam Header */}
-      <div className="max-w-5xl mx-auto bg-card border border-amber-500/30 rounded-2xl p-6 mb-8 flex items-center justify-between shadow-2xl">
-        <div className="flex items-center space-x-3">
-          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-400">
-            <Award className="w-7 h-7" />
+      <div className="max-w-4xl mx-auto bg-bg-panel border border-border-base rounded-xl p-5 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-md bg-bg-base border border-border-base flex items-center justify-center text-accent-amber">
+            <Award className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-xs font-mono font-bold text-amber-400 uppercase tracking-widest">
-              OFFICIAL CLOUDSECLAB EXAM
+            <span className="text-[10px] font-mono font-bold text-accent-amber uppercase tracking-wider">
+              Official Certification Exam
             </span>
-            <h1 className="text-2xl font-extrabold text-white">{examData.title}</h1>
+            <h1 className="text-base sm:text-lg font-bold text-text-primary font-mono">{examData.title}</h1>
           </div>
         </div>
 
         <Timer initialSeconds={remainingSeconds} onExpire={executeSubmit} />
       </div>
 
-      <div className="max-w-5xl mx-auto space-y-8">
-        {/* Theory Section */}
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Section 1: Theory Questions */}
         {theoryQuestions.length > 0 && (
-          <div className="bg-card border border-gray-800 rounded-2xl p-6 space-y-6">
-            <h2 className="text-lg font-bold text-white flex items-center border-b border-gray-800 pb-3">
-              <span className="text-cyan-400 font-mono mr-2">SECTION 1.</span> Theory Questions ({theoryQuestions.length} Total)
+          <div className="bg-bg-panel border border-border-base rounded-xl p-5 space-y-4">
+            <h2 className="text-xs font-mono font-bold text-text-primary uppercase tracking-wider border-b border-border-base pb-2.5 flex items-center gap-1.5">
+              <span className="text-accent-teal">SECTION 1:</span>
+              <span>Theoretical Principles ({theoryQuestions.length} Questions)</span>
             </h2>
 
-            <div className="space-y-6">
+            <div className="space-y-4">
               {theoryQuestions.map((q: any, idx: number) => (
-                <div key={q.id} className="bg-gray-900/60 border border-gray-800 rounded-xl p-5 space-y-3">
-                  <div className="font-semibold text-gray-200 text-sm flex items-start space-x-2">
-                    <span className="text-cyan-400 font-mono">Q{idx + 1}.</span>
-                    <span>{q.question}</span>
+                <div key={q.id} className="bg-bg-base border border-border-base rounded-lg p-4 space-y-2.5">
+                  <div className="font-semibold text-text-primary flex items-start gap-2">
+                    <span className="text-accent-teal font-mono">Q{idx + 1}.</span>
+                    <span className="leading-snug">{q.question}</span>
                   </div>
 
-                  <div className="space-y-2 pt-2">
+                  <div className="space-y-1.5 pt-1">
                     {q.options.map((opt: string, oIdx: number) => (
                       <label
                         key={oIdx}
-                        className={`flex items-center space-x-3 p-3 rounded-lg border text-sm cursor-pointer transition-all ${
+                        className={`flex items-start gap-2.5 p-2.5 rounded border text-xs cursor-pointer transition-colors ${
                           answers.theory[q.id.toString()] === opt
-                            ? 'border-amber-500 bg-amber-500/10 text-amber-300 font-medium'
-                            : 'border-gray-800 bg-gray-950/40 text-gray-300 hover:border-gray-700'
+                            ? 'border-accent-amber/50 bg-accent-amber/10 text-text-primary font-medium'
+                            : 'border-border-subtle bg-bg-panel text-text-muted hover:text-text-primary hover:border-border-base'
                         }`}
                       >
                         <input
@@ -115,9 +123,9 @@ export const Exam: React.FC = () => {
                           value={opt}
                           checked={answers.theory[q.id.toString()] === opt}
                           onChange={() => handleTheoryChange(q.id.toString(), opt)}
-                          className="text-amber-500 focus:ring-amber-500"
+                          className="mt-0.5 accent-[#E8A33D]"
                         />
-                        <span>{opt}</span>
+                        <span className="leading-snug">{opt}</span>
                       </label>
                     ))}
                   </div>
@@ -127,31 +135,36 @@ export const Exam: React.FC = () => {
           </div>
         )}
 
-        {/* Practical Section */}
+        {/* Section 2: Practical Labs */}
         {practicalLabs.length > 0 && (
-          <div className="bg-card border border-gray-800 rounded-2xl p-6 space-y-6">
-            <h2 className="text-lg font-bold text-white flex items-center border-b border-gray-800 pb-3">
-              <span className="text-emerald-400 font-mono mr-2">SECTION 2.</span> Practical Objectives ({practicalLabs.length} Labs)
+          <div className="bg-bg-panel border border-border-base rounded-xl p-5 space-y-4">
+            <h2 className="text-xs font-mono font-bold text-text-primary uppercase tracking-wider border-b border-border-base pb-2.5 flex items-center gap-1.5">
+              <span className="text-accent-teal">SECTION 2:</span>
+              <span>Practical Objectives ({practicalLabs.length} Challenges)</span>
             </h2>
 
-            <div className="space-y-6">
+            <div className="space-y-4">
               {practicalLabs.map((lab: any, idx: number) => (
-                <div key={lab.lab_id} className="bg-gray-900/60 border border-gray-800 rounded-xl p-5 space-y-3">
-                  <div className="font-bold text-gray-100 text-sm">
-                    Lab {idx + 1}: {lab.title} ({lab.points} Points)
+                <div key={lab.lab_id} className="bg-bg-base border border-border-base rounded-lg p-4 space-y-2.5">
+                  <div className="font-mono font-bold text-text-primary text-xs flex justify-between">
+                    <span>Lab {idx + 1}: {lab.title}</span>
+                    <span className="text-accent-amber">{lab.points} Points</span>
                   </div>
-                  <p className="text-xs font-mono text-cyan-300 bg-cyan-950/40 p-3 rounded-lg border border-cyan-500/20">
-                    Objective: {lab.objective}
+
+                  <p className="bg-bg-input border border-border-subtle p-2.5 rounded text-[11px] font-mono text-[#C8D1DC] leading-relaxed m-0">
+                    <strong className="text-accent-teal">Objective:</strong> {lab.objective}
                   </p>
 
-                  <div className="space-y-1.5 pt-2">
-                    <label className="text-xs font-mono text-gray-400">ENTER EXACT OBJECTIVE ANSWER / FLAG:</label>
+                  <div className="space-y-1 pt-1 font-mono">
+                    <label className="text-[10px] text-text-muted uppercase">
+                      Enter Exact Result Output / Discovered Key:
+                    </label>
                     <input
                       type="text"
-                      placeholder="e.g. svc-deploy, company-public-assets..."
+                      placeholder="e.g. svc-deploy, sec-prod-bucket..."
                       value={answers.practical[lab.lab_id.toString()] || ''}
                       onChange={(e) => handlePracticalChange(lab.lab_id.toString(), e.target.value)}
-                      className="w-full bg-gray-950 border border-gray-800 rounded-lg px-4 py-2.5 text-sm font-mono text-cyan-300 focus:outline-none focus:border-amber-500"
+                      className="w-full bg-bg-input border border-border-base rounded px-3 py-2 text-xs font-mono text-text-primary focus-visible:ring-1 focus-visible:ring-accent-amber"
                     />
                   </div>
                 </div>
@@ -160,40 +173,49 @@ export const Exam: React.FC = () => {
           </div>
         )}
 
-        {/* Bottom Submit Bar */}
-        <div className="flex justify-end pt-4">
+        {/* Submit Action */}
+        <div className="flex justify-end pt-2">
           <button
+            type="button"
             onClick={() => setShowConfirmModal(true)}
-            className="px-8 py-3.5 bg-amber-500 hover:bg-amber-600 text-black font-extrabold rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-all text-base"
+            className="px-6 py-2.5 bg-accent-amber text-bg-base hover:bg-accent-amber/90 font-mono font-bold rounded text-xs transition-colors shadow-sm focus-visible:ring-1 focus-visible:ring-accent-teal"
           >
-            Submit Final Exam
+            Submit Final Certification Exam
           </button>
         </div>
       </div>
 
       {/* Confirmation Modal */}
       {showConfirmModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-gray-800 rounded-2xl p-6 max-w-md w-full space-y-4 text-center">
-            <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto" />
-            <h3 className="text-xl font-bold text-white">Confirm Exam Submission</h3>
-            <p className="text-sm text-gray-300 leading-relaxed">
-              Are you sure you want to submit? You cannot go back or modify answers after submitting.
-            </p>
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        >
+          <div className="bg-bg-panel border border-border-base rounded-xl p-6 max-w-sm w-full space-y-4 text-center">
+            <AlertTriangle className="w-10 h-10 text-accent-amber mx-auto" />
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-text-primary font-mono">Confirm Exam Submission</h3>
+              <p className="text-xs text-text-muted font-sans leading-relaxed m-0">
+                Are you ready to submit your exam answers? You will not be able to modify answers after submission.
+              </p>
+            </div>
 
-            <div className="flex space-x-3 pt-2">
+            <div className="flex gap-2 pt-2">
               <button
+                type="button"
                 onClick={() => setShowConfirmModal(false)}
-                className="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold rounded-xl text-sm"
+                className="flex-1 py-2 bg-bg-base hover:bg-bg-panel-subtle text-text-muted hover:text-text-primary border border-border-base font-mono rounded text-xs transition-colors"
               >
-                Continue Exam
+                Review Answers
               </button>
               <button
+                type="button"
                 onClick={executeSubmit}
                 disabled={submitting}
-                className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-xl text-sm"
+                className="flex-1 py-2 bg-accent-amber text-bg-base hover:bg-accent-amber/90 font-mono font-bold rounded text-xs transition-colors"
               >
-                {submitting ? 'Submitting...' : 'Yes, Submit Now'}
+                {submitting ? 'Submitting...' : 'Confirm Submit'}
               </button>
             </div>
           </div>
@@ -202,4 +224,5 @@ export const Exam: React.FC = () => {
     </div>
   )
 }
+
 export default Exam

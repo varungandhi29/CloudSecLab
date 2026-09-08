@@ -1,58 +1,76 @@
 import React from 'react'
-import { Award, Download, ExternalLink, CheckCircle } from 'lucide-react'
+import { Award, Download, ExternalLink, CheckCircle2 } from 'lucide-react'
 import { CertificateItem } from '../../types'
+import { notify } from '../../store/toastStore'
 
 interface CertificateCardProps {
   cert: CertificateItem
-  onDownload?: () => void
 }
 
-export const CertificateCard: React.FC<CertificateCardProps> = ({ cert, onDownload }) => {
+export const CertificateCard: React.FC<CertificateCardProps> = ({ cert }) => {
   const verifyUrl = `${window.location.origin}/verify/${cert.verification_id}`
 
   const copyVerifyLink = () => {
     navigator.clipboard.writeText(verifyUrl)
-    alert('Verification link copied to clipboard!')
+    notify.success('Link Copied', 'Public certificate verification URL copied to clipboard.')
   }
 
   return (
-    <div className="bg-card border border-amber-500/30 rounded-xl p-5 shadow-[0_0_20px_rgba(245,158,11,0.08)] relative overflow-hidden group hover:border-amber-500/60 transition-all">
-      <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-bl-full pointer-events-none" />
-
-      <div className="flex items-start justify-between mb-4">
-        <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-400">
-          <Award className="w-6 h-6" />
+    <div className="bg-bg-panel border border-border-base hover:border-accent-teal/40 rounded-lg p-5 transition-all relative flex flex-col justify-between text-xs space-y-4">
+      {/* Top Header */}
+      <div className="flex items-start justify-between">
+        <div className="w-10 h-10 rounded-md bg-bg-base border border-border-base flex items-center justify-center text-accent-teal">
+          <Award className="w-5 h-5" />
         </div>
-        <span className="flex items-center space-x-1 text-xs font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
-          <CheckCircle className="w-3.5 h-3.5" />
+        <span className="flex items-center gap-1 text-[11px] font-mono text-accent-teal bg-accent-teal/10 border border-accent-teal/30 px-2 py-0.5 rounded">
+          <CheckCircle2 className="w-3.5 h-3.5" />
           <span>VERIFIED</span>
         </span>
       </div>
 
-      <h3 className="font-bold text-gray-100 text-lg mb-1 capitalize">
-        {cert.certificate_type} Cloud Security Certificate
-      </h3>
+      {/* Certificate Title & Details */}
+      <div className="space-y-2">
+        <h3 className="font-mono font-bold text-sm text-text-primary capitalize leading-snug">
+          {cert.certificate_type} Cloud Security Certificate
+        </h3>
 
-      <div className="space-y-1 mb-4 text-xs font-mono text-gray-400">
-        <div>Score: <span className="text-amber-400 font-bold">{cert.exam_score}%</span></div>
-        <div>ID: <span className="text-cyan-400">{cert.verification_id}</span></div>
-        <div>Issued: {new Date(cert.issued_at).toLocaleDateString()}</div>
+        <div className="bg-bg-input border border-border-subtle rounded p-3 font-mono text-[11px] space-y-1.5 text-text-muted">
+          <div className="flex justify-between">
+            <span>Holder:</span>
+            <span className="text-text-primary font-semibold">{cert.user_full_name}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Score:</span>
+            <span className="text-accent-amber font-semibold">{cert.exam_score}%</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Verification ID:</span>
+            <span className="text-accent-teal font-semibold">{cert.verification_id}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Issued:</span>
+            <span className="text-text-primary">{new Date(cert.issued_at).toLocaleDateString()}</span>
+          </div>
+        </div>
       </div>
 
-      <div className="flex items-center space-x-2 pt-3 border-t border-gray-800">
+      {/* Actions */}
+      <div className="pt-2 border-t border-border-subtle flex items-center gap-2">
         <a
           href={`/api/certificates/${cert.verification_id}/download`}
           download
-          className="flex-1 inline-flex items-center justify-center space-x-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 px-3 py-2 rounded-lg text-xs font-semibold transition-colors"
+          className="flex-1 inline-flex items-center justify-center gap-1.5 bg-accent-teal/15 hover:bg-accent-teal/25 text-accent-teal border border-accent-teal/30 px-3 py-1.5 rounded text-xs font-mono font-semibold transition-colors focus-visible:ring-1 focus-visible:ring-accent-amber"
         >
           <Download className="w-3.5 h-3.5" />
           <span>Download PDF</span>
         </a>
 
         <button
+          type="button"
           onClick={copyVerifyLink}
-          className="p-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors"
-          title="Copy Verification Link"
+          className="p-1.5 bg-bg-base hover:bg-bg-panel-subtle text-text-muted hover:text-text-primary border border-border-base rounded transition-colors focus-visible:ring-1 focus-visible:ring-accent-amber"
+          title="Copy Public Verification Link"
+          aria-label="Copy Verification Link"
         >
           <ExternalLink className="w-4 h-4" />
         </button>
@@ -60,3 +78,5 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({ cert, onDownlo
     </div>
   )
 }
+
+export default CertificateCard

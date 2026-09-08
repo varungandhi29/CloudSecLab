@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Shield, CheckCircle, XCircle, Award } from 'lucide-react'
+import { Shield, CheckCircle2, XCircle, Award, ExternalLink, ArrowLeft } from 'lucide-react'
 import axios from 'axios'
 
 export const VerifyCertificate: React.FC = () => {
@@ -24,8 +24,8 @@ export const VerifyCertificate: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center text-cyan-400 font-mono">
-        Verifying Certificate Authenticity...
+      <div className="min-h-screen bg-bg-base flex items-center justify-center text-text-muted font-mono text-xs">
+        Verifying Certificate Hash with Certificate Authority...
       </div>
     )
   }
@@ -33,64 +33,91 @@ export const VerifyCertificate: React.FC = () => {
   const isValid = data?.valid
 
   return (
-    <div className="min-h-screen bg-background text-gray-100 font-sans flex flex-col items-center justify-center p-6">
-      {/* Header Brand */}
-      <Link to="/" className="flex items-center space-x-3 mb-8">
-        <div className="p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-xl text-cyan-400">
-          <Shield className="w-8 h-8" />
+    <div className="min-h-screen bg-bg-base text-text-primary font-sans flex flex-col items-center justify-center p-4 sm:p-6">
+      {/* Brand Header */}
+      <Link to="/" className="flex items-center space-x-2.5 mb-6 focus-visible:ring-2 focus-visible:ring-accent-amber rounded">
+        <div className="w-8 h-8 rounded-md bg-bg-panel border border-border-base flex items-center justify-center text-accent-teal">
+          <Shield className="w-5 h-5" />
         </div>
-        <span className="font-mono font-bold text-2xl tracking-wider text-white">
-          CLOUD<span className="text-cyan-400">SEC</span>LAB
+        <span className="font-mono font-bold text-base tracking-tight text-text-primary">
+          CloudSec<span className="text-accent-teal">Lab</span>
         </span>
       </Link>
 
-      <div className="max-w-md w-full bg-card border border-gray-800 rounded-3xl p-8 shadow-2xl space-y-6 text-center">
+      {/* Verification Card */}
+      <div className="max-w-md w-full bg-bg-panel border border-border-base rounded-xl p-6 sm:p-8 shadow-2xl space-y-6 text-center text-xs">
         {isValid ? (
           <>
-            <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/40 rounded-full flex items-center justify-center mx-auto text-emerald-400">
-              <CheckCircle className="w-8 h-8" />
+            {/* Valid Icon */}
+            <div className="w-14 h-14 bg-accent-teal/10 border border-accent-teal/30 rounded-full flex items-center justify-center mx-auto text-accent-teal">
+              <CheckCircle2 className="w-7 h-7" />
             </div>
 
-            <div>
-              <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-full uppercase">
-                AUTHENTIC CERTIFICATE
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-mono font-bold text-accent-teal bg-accent-teal/10 border border-accent-teal/30 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                Authentic Credential Verified
               </span>
-              <h2 className="text-2xl font-extrabold text-white mt-4">{data.holder_name}</h2>
-              <p className="text-sm text-gray-400 mt-1 capitalize">{data.certificate_type} Cloud Security Certificate</p>
+              <h2 className="text-lg font-bold text-text-primary font-mono pt-2">{data.holder_name}</h2>
+              <p className="text-xs text-text-muted capitalize">
+                {data.certificate_type} Cloud Security Practitioner Certificate
+              </p>
             </div>
 
-            <div className="bg-gray-950/80 border border-gray-800 rounded-xl p-4 text-xs font-mono space-y-2 text-left text-gray-300">
-              <div><span className="text-gray-500">Verification ID:</span> <span className="text-cyan-400 font-bold">{data.verification_id}</span></div>
-              <div><span className="text-gray-500">Issued Date:</span> {new Date(data.issued_at).toLocaleDateString()}</div>
-              <div><span className="text-gray-500">Exam Score:</span> <span className="text-amber-400 font-bold">{data.exam_score}%</span></div>
-              <div><span className="text-gray-500">Issuer:</span> CloudSecLab Verification Authority</div>
+            {/* Cryptographic Details Table */}
+            <div className="bg-bg-input border border-border-subtle rounded-lg p-3.5 text-left font-mono text-[11px] space-y-2 text-text-muted">
+              <div className="flex justify-between border-b border-border-subtle pb-1.5">
+                <span>Verification ID:</span>
+                <span className="text-accent-teal font-semibold select-all">{data.verification_id}</span>
+              </div>
+              <div className="flex justify-between border-b border-border-subtle pb-1.5">
+                <span>Issued Date:</span>
+                <span className="text-text-primary">{new Date(data.issued_at).toLocaleDateString()}</span>
+              </div>
+              <div className="flex justify-between border-b border-border-subtle pb-1.5">
+                <span>Exam Score:</span>
+                <span className="text-accent-amber font-semibold">{data.exam_score}%</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Verification Authority:</span>
+                <span className="text-text-primary">CloudSecLab Root CA</span>
+              </div>
             </div>
+
+            <p className="text-[11px] text-text-muted font-sans leading-relaxed m-0">
+              This credential certifies that the holder has demonstrated hands-on technical proficiency in cloud security operations, IAM privilege management, and attack forensics.
+            </p>
           </>
         ) : (
           <>
-            <div className="w-16 h-16 bg-red-500/10 border border-red-500/40 rounded-full flex items-center justify-center mx-auto text-red-400">
-              <XCircle className="w-8 h-8" />
+            {/* Invalid Icon */}
+            <div className="w-14 h-14 bg-accent-danger/10 border border-accent-danger/30 rounded-full flex items-center justify-center mx-auto text-accent-danger">
+              <XCircle className="w-7 h-7" />
             </div>
 
-            <div>
-              <span className="text-xs font-mono font-bold text-red-400 bg-red-500/10 border border-red-500/30 px-3 py-1 rounded-full uppercase">
-                INVALID CERTIFICATE
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-mono font-bold text-accent-danger bg-accent-danger/10 border border-accent-danger/30 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                Invalid Certificate
               </span>
-              <h2 className="text-xl font-bold text-white mt-4">Verification Failed</h2>
-              <p className="text-xs text-gray-400 mt-2 leading-relaxed">
-                The verification code <span className="font-mono text-cyan-400">{id}</span> does not match any active CloudSecLab record.
+              <h2 className="text-base font-bold text-text-primary font-mono pt-2">Verification Failed</h2>
+              <p className="text-xs text-text-muted font-sans leading-relaxed">
+                The verification code <span className="font-mono text-text-primary bg-bg-base px-1.5 py-0.5 rounded border border-border-base">{id}</span> does not match any record in the CloudSecLab registry.
               </p>
             </div>
           </>
         )}
 
-        <div className="pt-4 border-t border-gray-800">
-          <Link to="/" className="text-xs font-mono text-cyan-400 hover:underline">
-            ← Return to CloudSecLab Home
+        <div className="pt-3 border-t border-border-base">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs font-mono text-text-muted hover:text-accent-teal transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Return to CloudSecLab</span>
           </Link>
         </div>
       </div>
     </div>
   )
 }
+
 export default VerifyCertificate

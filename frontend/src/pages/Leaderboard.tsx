@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Trophy, Search, Zap, Flame, Award } from 'lucide-react'
+import { Trophy, Search } from 'lucide-react'
 import { api } from '../services/api'
 import { LeaderboardEntry } from '../types'
 import { useAuthStore } from '../store/authStore'
@@ -8,6 +8,7 @@ import { LeaderboardChart } from '../components/charts/LeaderboardChart'
 export const Leaderboard: React.FC = () => {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
   const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
   const { user } = useAuthStore()
 
   useEffect(() => {
@@ -15,99 +16,124 @@ export const Leaderboard: React.FC = () => {
       try {
         const res = await api.get('/leaderboard')
         setEntries(res.data)
-      } catch (e) {}
+      } catch (e) {
+      } finally {
+        setLoading(false)
+      }
     }
     fetchLeaderboard()
   }, [])
 
-  const filtered = entries.filter((e) => e.username.toLowerCase().includes(search.toLowerCase()))
+  const filtered = entries.filter((e) =>
+    e.username.toLowerCase().includes(search.toLowerCase().trim())
+  )
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 max-w-6xl mx-auto px-4 md:px-6 py-6 text-text-primary text-xs">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-base pb-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center">
-            <Trophy className="w-8 h-8 text-amber-400 mr-3" />
-            Global Leaderboard
+          <h1 className="text-xl md:text-2xl font-bold text-text-primary font-mono tracking-tight flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-accent-amber" />
+            <span>Global Operator Leaderboard</span>
           </h1>
-          <p className="text-gray-400 text-sm">Top cloud security practitioners ranked by Total XP and completed challenges.</p>
+          <p className="text-text-muted text-xs font-sans mt-0.5">
+            Cloud security engineers ranked by total XP, level completions, and earned credentials.
+          </p>
         </div>
 
         <div className="relative">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+          <Search className="w-3.5 h-3.5 text-text-muted absolute left-3 top-2.5" />
           <input
             type="text"
-            placeholder="Search user..."
+            placeholder="Search operator..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="bg-card border border-gray-800 rounded-xl pl-9 pr-4 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-cyan-500 font-mono w-64"
+            className="w-full sm:w-56 bg-bg-input border border-border-base rounded pl-8 pr-3 py-1.5 text-xs text-text-primary font-mono focus-visible:ring-1 focus-visible:ring-accent-amber"
           />
         </div>
       </div>
 
-      {/* Top 10 Chart */}
-      {entries.length > 0 && (
-        <div className="bg-card border border-gray-800 rounded-2xl p-6 space-y-4">
-          <h3 className="text-sm font-bold text-gray-300 font-mono">TOP OPERATORS XP DISTRIBUTION</h3>
+      {/* Top 10 Recharts Distribution */}
+      {!loading && entries.length > 0 && (
+        <div className="bg-bg-panel border border-border-base rounded-xl p-5 space-y-2">
+          <h3 className="text-xs font-mono font-bold text-text-muted uppercase tracking-wider">
+            Top Operators XP Distribution
+          </h3>
           <LeaderboardChart data={entries} />
         </div>
       )}
 
       {/* Leaderboard Table */}
-      <div className="bg-card border border-gray-800 rounded-2xl overflow-hidden shadow-xl">
+      <div className="bg-bg-panel border border-border-base rounded-xl overflow-hidden shadow-lg">
         <div className="overflow-x-auto">
-          <table className="w-full text-left font-mono text-sm">
-            <thead className="bg-gray-900 text-cyan-400 uppercase text-xs border-b border-gray-800">
+          <table className="w-full text-left font-mono text-xs">
+            <thead className="bg-bg-panel-subtle text-text-muted uppercase text-[10px] border-b border-border-base font-semibold">
               <tr>
-                <th className="px-6 py-4">Rank</th>
-                <th className="px-6 py-4">Operator</th>
-                <th className="px-6 py-4">Country</th>
-                <th className="px-6 py-4 text-right">Levels</th>
-                <th className="px-6 py-4 text-right">Certs</th>
-                <th className="px-6 py-4 text-right">Streak</th>
-                <th className="px-6 py-4 text-right">Total XP</th>
+                <th className="px-4 py-3">Rank</th>
+                <th className="px-4 py-3">Operator</th>
+                <th className="px-4 py-3">Country</th>
+                <th className="px-4 py-3 text-right">Labs</th>
+                <th className="px-4 py-3 text-right">Certs</th>
+                <th className="px-4 py-3 text-right">Streak</th>
+                <th className="px-4 py-3 text-right">Total XP</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800/60">
+            <tbody className="divide-y divide-border-subtle">
               {filtered.map((entry) => {
                 const isMe = user?.username === entry.username
+
                 return (
                   <tr
                     key={entry.username}
                     className={`transition-colors ${
-                      isMe ? 'bg-cyan-500/10 border-l-4 border-l-cyan-400 font-bold' : 'hover:bg-gray-900/40'
+                      isMe
+                        ? 'bg-accent-teal/10 font-semibold'
+                        : 'hover:bg-bg-panel-subtle/50'
                     }`}
                   >
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
                       {entry.rank === 1 ? (
-                        <span className="text-amber-400 font-extrabold flex items-center">🥇 #1</span>
+                        <span className="text-accent-amber font-bold">🥇 #1</span>
                       ) : entry.rank === 2 ? (
-                        <span className="text-gray-300 font-extrabold flex items-center">🥈 #2</span>
+                        <span className="text-text-primary font-bold">🥈 #2</span>
                       ) : entry.rank === 3 ? (
-                        <span className="text-amber-600 font-extrabold flex items-center">🥉 #3</span>
+                        <span className="text-accent-amber font-bold">🥉 #3</span>
                       ) : (
-                        <span className="text-gray-400">#{entry.rank}</span>
+                        <span className="text-text-muted">#{entry.rank}</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-gray-100 flex items-center space-x-3">
-                      <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center font-bold text-xs text-cyan-400">
+
+                    <td className="px-4 py-3 text-text-primary flex items-center gap-2.5">
+                      <div className="w-6 h-6 rounded bg-bg-base border border-border-base flex items-center justify-center font-bold text-[10px] text-accent-teal">
                         {entry.username.slice(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <div className="font-bold">{entry.username}</div>
-                        <div className="text-xs text-gray-500 font-sans">{entry.full_name}</div>
+                        <div className="font-bold leading-tight">{entry.username}</div>
+                        {entry.full_name && (
+                          <div className="text-[10px] text-text-muted font-sans">{entry.full_name}</div>
+                        )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-gray-400">{entry.country || 'US'}</td>
-                    <td className="px-6 py-4 text-right text-emerald-400">{entry.completed_levels}</td>
-                    <td className="px-6 py-4 text-right text-amber-400">{entry.certificates_count}</td>
-                    <td className="px-6 py-4 text-right text-amber-500">{entry.streak_days}d</td>
-                    <td className="px-6 py-4 text-right font-extrabold text-cyan-400">
+
+                    <td className="px-4 py-3 text-text-muted">{entry.country || 'US'}</td>
+                    <td className="px-4 py-3 text-right text-accent-teal">{entry.completed_levels}</td>
+                    <td className="px-4 py-3 text-right text-text-primary">{entry.certificates_count}</td>
+                    <td className="px-4 py-3 text-right text-accent-amber">{entry.streak_days}d</td>
+                    <td className="px-4 py-3 text-right font-bold text-accent-amber">
                       {entry.total_xp.toLocaleString()} XP
                     </td>
                   </tr>
                 )
               })}
+
+              {filtered.length === 0 && !loading && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-text-muted font-mono text-xs">
+                    No operators match your search query.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -115,4 +141,5 @@ export const Leaderboard: React.FC = () => {
     </div>
   )
 }
+
 export default Leaderboard

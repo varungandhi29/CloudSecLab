@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import { api } from '../../services/api'
 import { LevelDetail, ForensicsQuestion as IForensicsQuestion } from '../../types'
+import { Search, CheckCircle2, AlertCircle, Terminal } from 'lucide-react'
+import { notify } from '../../store/toastStore'
 
 interface ForensicsViewerProps {
   level: LevelDetail
@@ -8,11 +10,11 @@ interface ForensicsViewerProps {
   onComplete: () => void
 }
 
-function ForensicsQuestion({
+function ForensicsQuestionRow({
   question,
   index,
   value,
-  onAnswerChange
+  onAnswerChange,
 }: {
   question: IForensicsQuestion
   index: number
@@ -28,66 +30,74 @@ function ForensicsQuestion({
     if (!value.trim()) return
     const val = value.trim().toLowerCase()
     const correct = (question.correct || question.correct_answer || '').trim().toLowerCase()
-    const accepted = (question.accepted_answers || []).map(a => a.trim().toLowerCase())
+    const accepted = (question.accepted_answers || []).map((a) => a.trim().toLowerCase())
     const correctMatch = (correct && val === correct) || accepted.includes(val)
     setChecked(true)
     setIsCorrect(correctMatch)
   }
 
   return (
-    <div style={{ background: '#111827', border: `1px solid ${checked ? (isCorrect ? '#10B981' : '#EF4444') : '#374151'}`, borderRadius: '8px', padding: '16px 20px' }}>
-      <div style={{ color: '#F9FAFB', fontSize: '14px', fontWeight: 600, marginBottom: '8px', display: 'flex', gap: '8px' }}>
-        <span style={{ color: '#EF4444', fontFamily: 'JetBrains Mono, monospace' }}>Q{index + 1}:</span>
-        <span>{text}</span>
+    <div
+      className={`bg-bg-panel border rounded-lg p-3.5 space-y-2 text-xs transition-colors ${
+        checked
+          ? isCorrect
+            ? 'border-accent-teal/40'
+            : 'border-accent-danger/40'
+          : 'border-border-base'
+      }`}
+    >
+      <div className="font-medium text-text-primary flex items-start gap-2">
+        <span className="font-mono text-accent-amber font-semibold">Q{index + 1}:</span>
+        <span className="leading-snug">{text}</span>
       </div>
+
       {question.hint && (
-        <div style={{ color: '#9CA3AF', fontSize: '12px', fontStyle: 'italic', marginBottom: '12px' }}>
+        <div className="text-[11px] text-text-muted italic pl-5">
           💡 Hint: {question.hint}
         </div>
       )}
-      <div style={{ display: 'flex', gap: '12px' }}>
+
+      <div className="flex gap-2">
         <input
           type="text"
           value={value}
-          onChange={e => {
+          onChange={(e) => {
             onAnswerChange(e.target.value)
             setChecked(false)
           }}
-          onKeyDown={e => e.key === 'Enter' && handleCheck()}
-          placeholder="Type your answer..."
-          style={{
-            flex: 1,
-            background: '#0A0E1A',
-            border: '1px solid #374151',
-            borderRadius: '6px',
-            padding: '10px 14px',
-            color: '#F9FAFB',
-            fontSize: '13px',
-            fontFamily: 'JetBrains Mono, monospace',
-            outline: 'none'
-          }}
+          onKeyDown={(e) => e.key === 'Enter' && handleCheck()}
+          placeholder="Type analysis answer..."
+          className="flex-1 bg-bg-input border border-border-base rounded px-3 py-1.5 text-xs text-text-primary font-mono focus-visible:ring-1 focus-visible:ring-accent-amber"
         />
         <button
+          type="button"
           onClick={handleCheck}
-          style={{ padding: '8px 18px', background: '#374151', color: '#F9FAFB', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+          className="px-3 py-1.5 bg-bg-base hover:bg-bg-input text-text-primary border border-border-base rounded text-xs font-mono font-semibold transition-colors focus-visible:ring-1 focus-visible:ring-accent-amber"
         >
           Check
         </button>
       </div>
+
       {checked && (
-        <div style={{ marginTop: '10px', fontSize: '13px', fontWeight: 600, color: isCorrect ? '#10B981' : '#EF4444' }}>
-          {isCorrect ? '✅ Correct!' : '❌ Incorrect — try again'}
+        <div
+          className={`text-[11px] font-mono font-semibold ${
+            isCorrect ? 'text-accent-teal' : 'text-accent-danger'
+          }`}
+        >
+          {isCorrect ? '✓ Correct finding' : '✗ Incorrect — inspect log events closely'}
         </div>
       )}
     </div>
   )
 }
 
-export default function ForensicsViewer({ level, levelId, onComplete }: ForensicsViewerProps) {
+export const ForensicsViewer: React.FC<ForensicsViewerProps> = ({ level, levelId, onComplete }) => {
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [searchTerm, setSearchTerm] = useState('')
   const [submitFeedback, setSubmitFeedback] = useState<{ passed?: boolean; message?: string } | null>(
-    level.user_progress?.forensics_completed ? { passed: true, message: 'Investigation Completed! (+100 XP)' } : null
+    level.user_progress?.forensics_completed
+      ? { passed: true, message: 'Forensics Investigation Completed! (+100 XP)' }
+      : null
   )
 
   const forensics = level.forensics
@@ -95,7 +105,7 @@ export default function ForensicsViewer({ level, levelId, onComplete }: Forensic
 
   const logEntries = forensics.log_entries || forensics.log_data || []
 
-  const filteredLogs = logEntries.filter(entry => {
+  const filteredLogs = logEntries.filter((entry) => {
     if (!searchTerm.trim()) return true
     const term = searchTerm.toLowerCase()
     return JSON.stringify(entry).toLowerCase().includes(term)
@@ -105,144 +115,118 @@ export default function ForensicsViewer({ level, levelId, onComplete }: Forensic
     try {
       const res = await api.post(`/progress/${levelId}/forensics`, { answers })
       if (res.data.passed) {
-        setSubmitFeedback({ passed: true, message: '✅ Forensics Investigation Completed! (+100 XP)' })
-        onComplete?.()
+        setSubmitFeedback({ passed: true, message: 'Investigation Completed! (+100 XP awarded)' })
+        notify.success('Forensics Solved (+100 XP)', 'Attack reconstruction verified.')
+        onComplete()
       } else {
         setSubmitFeedback({
           passed: false,
-          message: `❌ ${res.data.correct_count}/${res.data.total_questions} questions correct. Review logs and try again.`
+          message: `${res.data.correct_count}/${res.data.total_questions} questions correct. Review logs and try again.`,
         })
+        notify.error('Investigation Incomplete', 'Some answers were incorrect.')
       }
     } catch {
-      setSubmitFeedback({ passed: false, message: '❌ Error submitting answers. Please try again.' })
+      setSubmitFeedback({ passed: false, message: 'Error submitting answers. Please try again.' })
     }
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Scenario */}
-      <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '20px 24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-          <span style={{ fontSize: '18px' }}>🔍</span>
-          <span style={{ color: '#EF4444', fontWeight: 700, fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Forensics Investigation</span>
+    <div className="space-y-4 text-xs text-text-primary">
+      {/* Scenario Briefing */}
+      <div className="bg-bg-panel border border-border-base rounded-lg p-4 space-y-1.5">
+        <div className="flex items-center gap-1.5 text-accent-danger font-mono font-semibold text-xs uppercase tracking-wider">
+          <Search className="w-3.5 h-3.5" />
+          <span>Incident Scenario</span>
         </div>
-        <p style={{ color: '#D1D5DB', fontSize: '14px', lineHeight: '1.7', margin: 0 }}>{forensics.scenario}</p>
+        <p className="text-[#C8D1DC] text-xs leading-relaxed m-0 font-sans">{forensics.scenario}</p>
       </div>
 
-      {/* CloudTrail log table */}
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <div style={{ color: '#9CA3AF', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            📋 CloudTrail Log Evidence ({filteredLogs.length} Events)
+      {/* CloudTrail Log Evidence Viewer */}
+      <div className="space-y-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <span className="font-mono font-semibold text-text-muted text-[11px] uppercase tracking-wider">
+            CloudTrail Log Evidence ({filteredLogs.length} Events)
+          </span>
+          <div className="relative">
+            <Search className="w-3 h-3 text-text-muted absolute left-2.5 top-2" />
+            <input
+              type="text"
+              placeholder="Filter logs by IP, event, user..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="bg-bg-input border border-border-base rounded pl-7 pr-2.5 py-1 text-[11px] text-text-primary font-mono w-56 focus-visible:ring-1 focus-visible:ring-accent-amber"
+            />
           </div>
-          <input
-            type="text"
-            placeholder="Filter logs by keyword, IP, event..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            style={{
-              background: '#0A0E1A',
-              border: '1px solid #374151',
-              borderRadius: '6px',
-              padding: '6px 12px',
-              color: '#F9FAFB',
-              fontSize: '12px',
-              fontFamily: 'JetBrains Mono, monospace',
-              outline: 'none',
-              width: '260px'
-            }}
-          />
         </div>
-        <div style={{ background: '#0A0E1A', border: '1px solid #374151', borderRadius: '8px', overflow: 'hidden' }}>
-          {/* Table header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '180px 200px 160px 1fr', padding: '10px 16px', background: '#111827', borderBottom: '1px solid #374151' }}>
-            {['Timestamp', 'Event', 'User', 'Source IP'].map(h => (
-              <div key={h} style={{ color: '#6B7280', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</div>
+
+        <div className="bg-bg-input border border-border-base rounded-lg overflow-hidden">
+          {/* Table Header */}
+          <div className="grid grid-cols-4 gap-2 px-3 py-2 bg-bg-panel border-b border-border-base font-mono text-[10px] text-text-muted uppercase font-semibold">
+            <div>Timestamp</div>
+            <div>Event</div>
+            <div>Identity</div>
+            <div>Source IP</div>
+          </div>
+
+          {/* Log Rows */}
+          <div className="divide-y divide-border-subtle max-h-56 overflow-y-auto font-mono text-[11px]">
+            {filteredLogs.map((entry, i) => (
+              <div key={i} className="grid grid-cols-4 gap-2 px-3 py-1.5 hover:bg-bg-panel/60 transition-colors">
+                <div className="text-text-muted truncate">
+                  {entry.eventTime ? entry.eventTime.replace('T', ' ').replace('Z', '') : 'N/A'}
+                </div>
+                <div className="text-accent-danger font-semibold truncate">{entry.eventName || 'N/A'}</div>
+                <div className="text-accent-teal truncate">
+                  {typeof entry.userIdentity === 'object'
+                    ? entry.userIdentity?.userName || entry.userIdentity?.arn || 'Unknown'
+                    : entry.userIdentity || 'Unknown'}
+                </div>
+                <div className="text-text-muted truncate">{entry.sourceIPAddress || '127.0.0.1'}</div>
+              </div>
             ))}
+            {filteredLogs.length === 0 && (
+              <div className="p-4 text-center text-text-muted font-mono text-xs">
+                No log entries match your filter.
+              </div>
+            )}
           </div>
-
-          {/* Log rows */}
-          {filteredLogs.map((entry, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '180px 200px 160px 1fr',
-                padding: '10px 16px',
-                borderBottom: i < filteredLogs.length - 1 ? '1px solid #1F2937' : 'none',
-                transition: 'background 150ms'
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = '#111827'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-              <div style={{ color: '#9CA3AF', fontSize: '11px', fontFamily: 'JetBrains Mono, monospace' }}>
-                {entry.eventTime ? (isNaN(Date.parse(entry.eventTime)) ? entry.eventTime : new Date(entry.eventTime).toLocaleString()) : 'N/A'}
-              </div>
-              <div style={{ color: '#EF4444', fontSize: '12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600 }}>
-                {entry.eventName || 'N/A'}
-              </div>
-              <div style={{ color: '#06B6D4', fontSize: '12px', fontFamily: 'JetBrains Mono, monospace' }}>
-                {typeof entry.userIdentity === 'object' ? entry.userIdentity?.userName || entry.userIdentity?.arn || 'Unknown' : entry.userIdentity || 'Unknown'}
-              </div>
-              <div style={{ color: '#9CA3AF', fontSize: '12px', fontFamily: 'JetBrains Mono, monospace' }}>
-                {entry.sourceIPAddress || '127.0.0.1'}
-              </div>
-            </div>
-          ))}
-          {filteredLogs.length === 0 && (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#6B7280', fontSize: '13px' }}>
-              No log entries match search query.
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Investigation questions */}
-      <div>
-        <div style={{ color: '#9CA3AF', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
-          🕵️ Investigation Questions
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Investigation Questions */}
+      <div className="space-y-2.5 pt-2">
+        <span className="font-mono font-semibold text-text-muted text-[11px] uppercase tracking-wider block">
+          Investigation Questions
+        </span>
+        <div className="space-y-2.5">
           {forensics.questions?.map((q, i) => (
-            <ForensicsQuestion
+            <ForensicsQuestionRow
               key={i}
               question={q}
               index={i}
               value={answers[i.toString()] || ''}
-              onAnswerChange={val => setAnswers(prev => ({ ...prev, [i.toString()]: val }))}
+              onAnswerChange={(val) => setAnswers((prev) => ({ ...prev, [i.toString()]: val }))}
             />
           ))}
         </div>
 
-        {/* Submit button */}
-        <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="pt-2 flex flex-col gap-2">
           <button
+            type="button"
             onClick={handleSubmitAll}
-            style={{
-              padding: '12px 28px',
-              background: '#EF4444',
-              color: '#FFF',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              alignSelf: 'flex-start'
-            }}
+            className="self-start px-4 py-2 bg-accent-danger/20 hover:bg-accent-danger/30 text-accent-danger border border-accent-danger/40 rounded text-xs font-mono font-bold transition-colors focus-visible:ring-1 focus-visible:ring-accent-amber"
           >
             Submit Forensics Investigation
           </button>
 
           {submitFeedback && (
-            <div style={{
-              padding: '12px 16px',
-              borderRadius: '6px',
-              background: submitFeedback.passed ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-              border: `1px solid ${submitFeedback.passed ? '#10B981' : '#EF4444'}`,
-              color: submitFeedback.passed ? '#10B981' : '#EF4444',
-              fontSize: '13px',
-              fontWeight: 600
-            }}>
+            <div
+              className={`p-2.5 rounded border text-xs font-mono ${
+                submitFeedback.passed
+                  ? 'bg-accent-teal/10 border-accent-teal/40 text-accent-teal'
+                  : 'bg-accent-danger/10 border-accent-danger/40 text-accent-danger'
+              }`}
+            >
               {submitFeedback.message}
             </div>
           )}
@@ -252,4 +236,4 @@ export default function ForensicsViewer({ level, levelId, onComplete }: Forensic
   )
 }
 
-export { ForensicsViewer }
+export default ForensicsViewer

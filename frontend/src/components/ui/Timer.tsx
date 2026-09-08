@@ -38,19 +38,21 @@ export const Timer: React.FC<TimerProps> = ({ initialSeconds, onExpire }) => {
 
   const format = (n: number) => (n < 10 ? `0${n}` : n)
 
-  let colorClass = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
+  let colorClass = 'text-accent-teal bg-accent-teal/10 border-accent-teal/30'
   if (secondsLeft < 600) {
-    colorClass = 'text-red-400 bg-red-500/10 border-red-500/30 animate-pulse'
+    colorClass = 'text-accent-danger bg-accent-danger/10 border-accent-danger/30 animate-pulse'
   } else if (secondsLeft < 1200) {
-    colorClass = 'text-amber-400 bg-amber-500/10 border-amber-500/30'
+    colorClass = 'text-accent-amber bg-accent-amber/10 border-accent-amber/30'
   }
 
   return (
-    <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg border font-mono font-bold text-sm ${colorClass}`}>
-      <Clock className="w-4 h-4" />
+    <div className={`flex items-center space-x-2 px-3 py-1.5 rounded border font-mono font-bold text-xs ${colorClass}`}>
+      <Clock className="w-3.5 h-3.5" />
       <span>
         {format(minutes)}:{format(seconds)}
       </span>
     </div>
   )
 }
+
+export default Timer

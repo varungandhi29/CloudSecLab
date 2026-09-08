@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_BASE_URL = '/api'
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -24,7 +24,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !error.config._retry) {
       error.config._retry = true
       try {
-        const refreshRes = await axios.post('/api/auth/refresh', {}, { withCredentials: true })
+        const refreshRes = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, { withCredentials: true })
         const newToken = refreshRes.data.access_token
         localStorage.setItem('token', newToken)
         error.config.headers.Authorization = `Bearer ${newToken}`

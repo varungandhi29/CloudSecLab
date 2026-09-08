@@ -10,10 +10,7 @@ logger = logging.getLogger(__name__)
 class LabEngine:
     def __init__(self, level_id: int):
         self.level_id = level_id
-        ep = os.environ.get("LOCALSTACK_ENDPOINT", settings.LOCALSTACK_ENDPOINT)
-        if "localhost" in ep:
-            ep = "http://localstack:4566"
-        self.endpoint = ep
+        self.endpoint = os.environ.get("LOCALSTACK_ENDPOINT", settings.LOCALSTACK_ENDPOINT)
 
     def get_client(self, service: str):
         return boto3.client(

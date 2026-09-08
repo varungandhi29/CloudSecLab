@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Terminal as TerminalIcon, Copy, Check } from 'lucide-react'
+import { notify } from '../../store/toastStore'
 
 interface StepCommand {
   step: number
@@ -19,66 +20,72 @@ export const Terminal: React.FC<TerminalProps> = ({ steps }) => {
   const handleCopy = (text: string, idx: number) => {
     navigator.clipboard.writeText(text)
     setCopiedIndex(idx)
+    notify.success('Copied command', text)
     setTimeout(() => setCopiedIndex(null), 2000)
   }
 
   return (
-    <div className="bg-[#0A0E1A] border border-gray-800 rounded-xl overflow-hidden shadow-2xl font-mono text-sm">
+    <div className="bg-bg-input border border-border-base rounded-lg overflow-hidden font-mono text-xs shadow-xl">
       {/* Header */}
-      <div className="bg-gray-900/90 px-4 py-2.5 border-b border-gray-800 flex items-center justify-between">
+      <div className="bg-bg-panel px-3.5 py-2 border-b border-border-base flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <div className="flex space-x-1.5">
-            <div className="w-3 h-3 rounded-full bg-red-500/80" />
-            <div className="w-3 h-3 rounded-full bg-amber-500/80" />
-            <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
+            <div className="w-2.5 h-2.5 rounded-full bg-accent-danger/70" />
+            <div className="w-2.5 h-2.5 rounded-full bg-accent-amber/70" />
+            <div className="w-2.5 h-2.5 rounded-full bg-accent-teal/70" />
           </div>
-          <span className="text-xs text-gray-400 font-semibold ml-2 flex items-center">
-            <TerminalIcon className="w-3.5 h-3.5 mr-1.5 text-cyan-400" />
-            aws-cli-emulator bash
+          <span className="text-[11px] text-text-muted font-semibold ml-2 flex items-center gap-1.5">
+            <TerminalIcon className="w-3.5 h-3.5 text-accent-teal" />
+            <span>aws-cli bash emulator</span>
           </span>
         </div>
-        <span className="text-xs text-cyan-400/70">LocalStack :4566</span>
+        <span className="text-[11px] text-accent-teal font-mono">LocalStack :4566</span>
       </div>
 
       {/* Terminal Content */}
-      <div className="p-4 space-y-6 max-h-[500px] overflow-y-auto">
+      <div className="p-3.5 space-y-4 max-h-[500px] overflow-y-auto">
         {steps.map((step, idx) => (
-          <div key={idx} className="space-y-2">
-            <div className="text-xs text-amber-400 font-semibold flex items-center">
-              <span className="bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded mr-2">
+          <div key={idx} className="space-y-1.5">
+            <div className="text-xs text-accent-amber font-semibold flex items-center gap-1.5">
+              <span className="bg-bg-base border border-border-base px-1.5 py-0.5 rounded text-[10px]">
                 STEP {step.step}
               </span>
-              {step.title}
+              <span>{step.title}</span>
             </div>
 
-            <div className="bg-gray-950/80 border border-gray-800 rounded-lg p-3 relative group">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-2 text-cyan-300 pr-8 overflow-x-auto">
-                  <span className="text-emerald-400 select-none">$</span>
-                  <code className="text-cyan-300 font-bold">{step.command}</code>
+            <div className="bg-bg-base border border-border-base rounded p-2.5 relative group">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-2 text-text-primary overflow-x-auto">
+                  <span className="text-accent-teal select-none font-bold">$</span>
+                  <code className="text-[#A9B7C6] font-mono">{step.command}</code>
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => handleCopy(step.command, idx)}
-                  className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-white bg-gray-800 rounded transition-all"
+                  className="p-1 text-text-muted hover:text-text-primary bg-bg-panel rounded transition-colors shrink-0 focus-visible:ring-1 focus-visible:ring-accent-amber"
                   title="Copy command"
                 >
-                  {copiedIndex === idx ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  {copiedIndex === idx ? <Check className="w-3.5 h-3.5 text-accent-teal" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
               </div>
 
               {step.expected_output && (
-                <div className="mt-2 pt-2 border-t border-gray-800/60 text-xs text-gray-400 font-mono">
-                  <div className="text-gray-500 mb-1 select-none"># Output:</div>
-                  <pre className="whitespace-pre-wrap bg-black/40 p-2 rounded text-gray-300">{step.expected_output}</pre>
+                <div className="mt-2 pt-2 border-t border-border-subtle text-[11px] text-text-muted font-mono">
+                  <div className="text-[10px] text-text-muted uppercase mb-0.5 select-none"># Output:</div>
+                  <pre className="whitespace-pre-wrap bg-bg-input p-2 rounded text-text-primary leading-tight">{step.expected_output}</pre>
                 </div>
               )}
             </div>
 
-            <p className="text-xs text-gray-400 italic pl-1">{step.explanation}</p>
+            {step.explanation && (
+              <p className="text-[11px] text-text-muted italic pl-1 leading-normal m-0">{step.explanation}</p>
+            )}
           </div>
         ))}
       </div>
     </div>
   )
 }
+
+export default Terminal

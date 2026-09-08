@@ -13,17 +13,37 @@ export const LeaderboardChart: React.FC<LeaderboardChartProps> = ({ data }) => {
   }))
 
   return (
-    <div className="h-64 w-full">
+    <div className="h-56 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-          <XAxis dataKey="name" stroke="#9CA3AF" fontSize={11} tickLine={false} angle={-30} textAnchor="end" />
-          <YAxis stroke="#9CA3AF" fontSize={11} tickLine={false} />
-          <Tooltip
-            contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', borderRadius: '8px', color: '#F9FAFB' }}
+        <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 25 }}>
+          <XAxis
+            dataKey="name"
+            stroke="#8B95A5"
+            fontSize={11}
+            tickLine={false}
+            angle={-25}
+            textAnchor="end"
+            fontFamily="JetBrains Mono"
           />
-          <Bar dataKey="xp" radius={[6, 6, 0, 0]}>
+          <YAxis
+            stroke="#8B95A5"
+            fontSize={10}
+            tickLine={false}
+            fontFamily="JetBrains Mono"
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: '#1A2029',
+              borderColor: '#26303D',
+              borderRadius: '6px',
+              color: '#E7EAEE',
+              fontFamily: 'JetBrains Mono',
+              fontSize: '11px',
+            }}
+          />
+          <Bar dataKey="xp" radius={[4, 4, 0, 0]}>
             {chartData.map((_, index) => (
-              <Cell key={`cell-${index}`} fill={index === 0 ? '#F59E0B' : '#06B6D4'} />
+              <Cell key={`cell-${index}`} fill={index === 0 ? '#E8A33D' : '#4FB6A8'} />
             ))}
           </Bar>
         </BarChart>
@@ -31,3 +51,5 @@ export const LeaderboardChart: React.FC<LeaderboardChartProps> = ({ data }) => {
     </div>
   )
 }
+
+export default LeaderboardChart
