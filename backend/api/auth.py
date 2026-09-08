@@ -30,11 +30,32 @@ class GoogleAuthRequest(BaseModel):
     google_id: Optional[str] = None
     avatar_url: Optional[str] = None
 
+class GitHubAuthRequest(BaseModel):
+    code: Optional[str] = None
+    email: Optional[str] = None
+    username: Optional[str] = None
+    full_name: Optional[str] = None
+    github_id: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+class GitLabAuthRequest(BaseModel):
+    email: Optional[str] = None
+    username: Optional[str] = None
+    full_name: Optional[str] = None
+    gitlab_id: Optional[str] = None
+
 class AppleAuthRequest(BaseModel):
     identity_token: Optional[str] = None
     email: Optional[str] = None
     full_name: Optional[str] = None
     apple_id: Optional[str] = None
+
+class GuestAuthRequest(BaseModel):
+    nickname: Optional[str] = None
+
+class PasskeyAuthRequest(BaseModel):
+    credential_id: Optional[str] = None
+    email: Optional[str] = None
 
 class MagicLinkRequest(BaseModel):
     email: str
@@ -223,6 +244,202 @@ async def apple_auth(req: AppleAuthRequest, response: Response, db: Session = De
     else:
         user.provider = "apple"
         user.provider_id = apple_id
+        user.last_login = datetime.utcnow()
+
+    db.commit()
+    db.refresh(user)
+
+    access_token = create_access_token({"sub": user.id})
+    refresh_token = create_refresh_token({"sub": user.id})
+
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, samesite="lax")
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "full_name": user.full_name,
+            "total_xp": user.total_xp,
+            "current_level": user.current_level,
+            "streak_days": user.streak_days,
+            "provider": user.provider
+        }
+    }
+
+@router.post("/github")
+async def github_auth(req: GitHubAuthRequest, response: Response, db: Session = Depends(get_db)):
+    email = req.email or f"gh_operator_{str(uuid.uuid4())[:8]}@github.com"
+    full_name = req.full_name or "GitHub Cloud Engineer"
+    github_id = req.github_id or str(uuid.uuid4())
+
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        username = req.username or (email.split("@")[0].replace(".", "_") + "_gh")
+        existing = db.query(User).filter(User.username == username).first()
+        if existing:
+            username = f"{username}_{str(uuid.uuid4())[:4]}"
+
+        user = User(
+            email=email,
+            username=username,
+            full_name=full_name,
+            provider="github",
+            provider_id=github_id,
+            avatar_url=req.avatar_url,
+            is_verified=True,
+            created_at=datetime.utcnow()
+        )
+        db.add(user)
+    else:
+        user.provider = "github"
+        user.provider_id = github_id
+        user.last_login = datetime.utcnow()
+
+    db.commit()
+    db.refresh(user)
+
+    access_token = create_access_token({"sub": user.id})
+    refresh_token = create_refresh_token({"sub": user.id})
+
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, samesite="lax")
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "full_name": user.full_name,
+            "total_xp": user.total_xp,
+            "current_level": user.current_level,
+            "streak_days": user.streak_days,
+            "provider": user.provider
+        }
+    }
+
+@router.post("/gitlab")
+async def gitlab_auth(req: GitLabAuthRequest, response: Response, db: Session = Depends(get_db)):
+    email = req.email or f"gitlab_sec_{str(uuid.uuid4())[:8]}@gitlab.com"
+    full_name = req.full_name or "GitLab DevSecOps Lead"
+    gitlab_id = req.gitlab_id or str(uuid.uuid4())
+
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        username = req.username or (email.split("@")[0].replace(".", "_") + "_gl")
+        existing = db.query(User).filter(User.username == username).first()
+        if existing:
+            username = f"{username}_{str(uuid.uuid4())[:4]}"
+
+        user = User(
+            email=email,
+            username=username,
+            full_name=full_name,
+            provider="gitlab",
+            provider_id=gitlab_id,
+            is_verified=True,
+            created_at=datetime.utcnow()
+        )
+        db.add(user)
+    else:
+        user.provider = "gitlab"
+        user.provider_id = gitlab_id
+        user.last_login = datetime.utcnow()
+
+    db.commit()
+    db.refresh(user)
+
+    access_token = create_access_token({"sub": user.id})
+    refresh_token = create_refresh_token({"sub": user.id})
+
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, samesite="lax")
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "full_name": user.full_name,
+            "total_xp": user.total_xp,
+            "current_level": user.current_level,
+            "streak_days": user.streak_days,
+            "provider": user.provider
+        }
+    }
+
+@router.post("/guest")
+def guest_auth(req: GuestAuthRequest, response: Response, db: Session = Depends(get_db)):
+    random_hex = str(uuid.uuid4())[:6]
+    username = f"sandbox_op_{random_hex}"
+    email = f"{username}@guest.cloudseclab.io"
+    full_name = req.nickname or f"Sandbox Operator #{random_hex.upper()}"
+
+    user = User(
+        email=email,
+        username=username,
+        full_name=full_name,
+        provider="guest",
+        is_verified=True,
+        total_xp=150,
+        current_level=2,
+        streak_days=1,
+        bio="Ephemeral Sandbox Operator Profile",
+        created_at=datetime.utcnow()
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    access_token = create_access_token({"sub": user.id})
+    refresh_token = create_refresh_token({"sub": user.id})
+
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, samesite="lax")
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "full_name": user.full_name,
+            "total_xp": user.total_xp,
+            "current_level": user.current_level,
+            "streak_days": user.streak_days,
+            "provider": user.provider
+        }
+    }
+
+@router.post("/passkey")
+def passkey_auth(req: PasskeyAuthRequest, response: Response, db: Session = Depends(get_db)):
+    email = req.email or f"fido2_key_{str(uuid.uuid4())[:8]}@passkey.auth"
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        username = f"passkey_op_{str(uuid.uuid4())[:6]}"
+        user = User(
+            email=email,
+            username=username,
+            full_name="Hardware Security Key Operator",
+            provider="passkey",
+            provider_id=req.credential_id or str(uuid.uuid4()),
+            is_verified=True,
+            created_at=datetime.utcnow()
+        )
+        db.add(user)
+    else:
+        user.provider = "passkey"
         user.last_login = datetime.utcnow()
 
     db.commit()
