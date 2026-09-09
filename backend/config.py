@@ -14,7 +14,7 @@ except ImportError:
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _default_content = os.path.join(BASE_DIR, "content")
-_default_certs = os.path.join(BASE_DIR, "output", "certificates")
+_default_certs = "/tmp/certificates" if (os.path.exists("/tmp") and os.access("/tmp", os.W_OK)) else os.path.join(BASE_DIR, "output", "certificates")
 
 class Settings(BaseSettings):
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")

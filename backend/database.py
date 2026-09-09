@@ -31,7 +31,8 @@ if db_url.startswith("postgresql"):
                 break
     
     if not connected:
-        sqlite_file = os.path.join(os.path.dirname(__file__), "cloudseclab.db")
+        sqlite_dir = "/tmp" if (os.path.exists("/tmp") and os.access("/tmp", os.W_OK)) else os.path.dirname(__file__)
+        sqlite_file = os.path.join(sqlite_dir, "cloudseclab.db")
         db_url = f"sqlite:///{sqlite_file}"
         logger.warning(
             "PostgreSQL database is unreachable. Seamlessly falling back to local SQLite database: %s", sqlite_file
