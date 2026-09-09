@@ -15,6 +15,7 @@ export const Register: React.FC = () => {
 
   const { login } = useAuthStore()
   const navigate = useNavigate()
+  const BACKEND = import.meta.env.VITE_API_URL || ''
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,12 +31,23 @@ export const Register: React.FC = () => {
       })
 
       if (res?.data?.access_token && res?.data?.user) {
-        login(res.data.access_token, res.data.user)
+        const token = res.data.access_token || res.data.token
+        localStorage.setItem('csl_token', token)
+        localStorage.setItem('token', token)
+        localStorage.setItem('csl_user', JSON.stringify(res.data.user))
+        localStorage.setItem('cloudsec_user', JSON.stringify(res.data.user))
+        login(token, res.data.user)
         notify.success('Account Created', `Welcome to CloudSecLab, ${username}!`)
         navigate('/dashboard')
         return
       }
-    } catch (err: any) {}
+    } catch (err: any) {
+      if (err?.response?.data?.detail) {
+        setError(err.response.data.detail)
+        setLoading(false)
+        return
+      }
+    }
 
     const fallbackUser = {
       id: `usr_reg_${Date.now()}`,
@@ -48,92 +60,72 @@ export const Register: React.FC = () => {
       country: 'US',
       created_at: new Date().toISOString(),
     }
+    localStorage.setItem('csl_token', `jwt_reg_${Date.now()}`)
     login(`jwt_reg_${Date.now()}`, fallbackUser)
     notify.success('Account Created', `Welcome to CloudSecLab, ${fallbackUser.username}!`)
     navigate('/dashboard')
     setLoading(false)
   }
 
-  const handleSSORegister = async (provider: 'github' | 'google' | 'gitlab' | 'apple') => {
-    setLoading(true)
-    setError('')
-    try {
-      let res
-      if (provider === 'github') {
-        res = await api.post('/auth/github', {
-          username: `gh_sec_op_${Math.floor(Math.random() * 1000)}`,
-          full_name: 'GitHub Security Engineer',
-        })
-      } else if (provider === 'gitlab') {
-        res = await api.post('/auth/gitlab', {
-          username: `gl_sec_op_${Math.floor(Math.random() * 1000)}`,
-          full_name: 'GitLab DevSecOps Lead',
-        })
-      } else if (provider === 'apple') {
-        res = await api.post('/auth/apple', {
-          full_name: 'Apple Security Operator',
-        })
-      } else {
-        res = await api.post('/auth/google', {
-          full_name: 'Google Security Specialist',
-        })
-      }
-
-      if (res?.data?.access_token && res?.data?.user) {
-        login(res.data.access_token, res.data.user)
-        notify.success('Account Ready', `Registered via ${provider.toUpperCase()} SSO.`)
-        navigate('/dashboard')
-        return
-      }
-    } catch (err: any) {}
-
-    const fallbackUser = {
-      id: `usr_${provider}_${Date.now()}`,
-      username: `${provider}_sec_op`,
-      email: `security@${provider === 'apple' ? 'privaterelay.appleid' : provider}.com`,
-      full_name: `${provider.charAt(0).toUpperCase() + provider.slice(1)} Security Specialist`,
-      total_xp: 450,
-      current_level: 1,
-      streak_days: 7,
-      country: 'US',
-      created_at: new Date().toISOString(),
+  const handleSSORegister = (provider: 'github' | 'google' | 'gitlab' | 'apple') => {
+    if (provider === 'google') {
+      window.location.href = `${BACKEND}/api/auth/google`
+    } else if (provider === 'github' || provider === 'gitlab') {
+      window.location.href = `${BACKEND}/api/auth/github`
+    } else if (provider === 'apple') {
+      window.location.href = `${BACKEND}/api/auth/apple`
     }
-    login(`jwt_${provider}_${Date.now()}`, fallbackUser)
-    notify.success('Account Ready', `Registered via ${provider.toUpperCase()} SSO.`)
-    navigate('/dashboard')
-    setLoading(false)
   }
 
   const handleGuestAccess = async () => {
     setLoading(true)
     setError('')
     try {
-      const res = await api.post('/auth/guest', {})
-      if (res?.data?.access_token && res?.data?.user) {
-        login(res.data.access_token, res.data.user)
-        notify.success('Sandbox Ready', `Logged in as Guest Operator: ${res.data.user.username}`)
+      const res = await fetch(`${BACKEND}/api/auth/guest`, { method: 'POST' })
+      const data = await res.json()
+      const token = data.token || data.access_token
+      if (token) {
+        localStorage.setItem('csl_token', token)
+        localStorage.setItem('token', token)
+        const user = data.user || {
+          id: 'guest',
+          username: 'guest_user',
+          email: 'guest@sandbox.cloudseclab.io',
+          full_name: 'Guest Operator',
+          total_xp: 150,
+          current_level: 1,
+          streak_days: 1
+        }
+        localStorage.setItem('csl_user', JSON.stringify(user))
+        localStorage.setItem('cloudsec_user', JSON.stringify(user))
+        login(token, user)
+        notify.success('Sandbox Ready', `Logged in as Guest Operator: ${user.username}`)
         navigate('/dashboard')
         return
       }
-    } catch (err: any) {}
-
-    const guestId = Math.floor(100 + Math.random() * 900)
-    const fallbackUser = {
-      id: `usr_guest_${guestId}`,
-      username: `guest_operator_${guestId}`,
-      email: `guest_${guestId}@cloudseclab.io`,
-      full_name: 'Guest Security Auditor',
-      total_xp: 150,
-      current_level: 1,
-      streak_days: 1,
-      country: 'US',
-      created_at: new Date().toISOString(),
+    } catch (err) {
+      const guestId = Math.floor(100 + Math.random() * 900)
+      const fallbackUser = {
+        id: `usr_guest_${guestId}`,
+        username: `guest_operator_${guestId}`,
+        email: `guest_${guestId}@cloudseclab.io`,
+        full_name: 'Guest Security Auditor',
+        total_xp: 150,
+        current_level: 1,
+        streak_days: 1,
+        country: 'US',
+        created_at: new Date().toISOString(),
+      }
+      localStorage.setItem('csl_token', `jwt_guest_${guestId}`)
+      localStorage.setItem('token', `jwt_guest_${guestId}`)
+      login(`jwt_guest_${guestId}`, fallbackUser)
+      notify.success('Sandbox Ready', `Logged in as Guest Operator: ${fallbackUser.username}`)
+      navigate('/dashboard')
+    } finally {
+      setLoading(false)
     }
-    login(`jwt_guest_${guestId}`, fallbackUser)
-    notify.success('Sandbox Ready', `Logged in as Guest Operator: ${fallbackUser.username}`)
-    navigate('/dashboard')
-    setLoading(false)
   }
+
 
   return (
     <div className="min-h-screen bg-bg-base flex items-center justify-center p-4 text-xs font-sans text-text-primary">

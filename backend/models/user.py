@@ -23,6 +23,8 @@ class User(Base):
     bio = Column(String, nullable=True, default="Cloud Security Enthusiast")
     
     # OAuth Provider fields
-    provider = Column(String, default="email")  # email | google | apple
-    provider_id = Column(String, nullable=True)  # Google/Apple sub ID
+    provider = Column(String, default="email")  # email | google | github | apple | gitlab | guest
+    auth_provider = Column(String, default="email")  # email | google | github | apple | gitlab | guest
+    provider_id = Column(String, nullable=True)  # Google/Apple/GitHub sub ID
     avatar_url = Column(String, nullable=True)
+

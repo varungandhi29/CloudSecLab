@@ -3,11 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from api import auth, users, levels, labs, progress, leaderboard, exams, certificates
 from config import settings
-from database import engine, Base
+from database import engine, Base, run_migrations
 import os
 
-# Create database tables automatically
+# Create database tables automatically and ensure columns exist
 Base.metadata.create_all(bind=engine)
+run_migrations()
+
 
 app = FastAPI(title="CloudSecLab API", version="1.0.0", docs_url="/api/docs", redoc_url=None)
 

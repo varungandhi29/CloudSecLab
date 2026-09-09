@@ -13,6 +13,7 @@ import Certificates from './pages/Certificates'
 import VerifyCertificate from './pages/VerifyCertificate'
 import Leaderboard from './pages/Leaderboard'
 import Profile from './pages/Profile'
+import AuthCallback from './pages/AuthCallback'
 import { AuthGuard } from './guards/AuthGuard'
 
 export default function App() {
@@ -23,7 +24,12 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verify/:id" element={<VerifyCertificate />} />
+        <Route path="/auth/success" element={<AuthCallback />} />
+        <Route path="/auth/callback/google" element={<AuthCallback />} />
+        <Route path="/auth/callback/github" element={<AuthCallback />} />
+        <Route path="/auth/callback/apple" element={<AuthCallback />} />
         <Route element={<AuthGuard><Layout /></AuthGuard>}>
+
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/levels" element={<LevelMap />} />
           <Route path="/levels/:id" element={<LevelDetail />} />

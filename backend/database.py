@@ -44,9 +44,28 @@ engine = create_engine(db_url, connect_args=connect_args, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+def run_migrations():
+    try:
+        with engine.connect() as conn:
+            if db_url.startswith("sqlite"):
+                cols = [row[1] for row in conn.exec_driver_sql("PRAGMA table_info(users)").fetchall()]
+                if cols:
+                    if "auth_provider" not in cols:
+                        conn.exec_driver_sql("ALTER TABLE users ADD COLUMN auth_provider VARCHAR DEFAULT 'email'")
+                    if "avatar_url" not in cols:
+                        conn.exec_driver_sql("ALTER TABLE users ADD COLUMN avatar_url VARCHAR")
+                    conn.commit()
+            else:
+                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR DEFAULT 'email'")
+                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR")
+                conn.commit()
+    except Exception as e:
+        logger.debug("Database migration check: %s", e)
+
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+

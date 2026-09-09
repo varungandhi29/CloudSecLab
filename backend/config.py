@@ -1,8 +1,14 @@
 import os
 import secrets
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
 
 logger = logging.getLogger(__name__)
+
 
 try:
     from pydantic_settings import BaseSettings
@@ -21,15 +27,17 @@ class Settings(BaseSettings):
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://cloudseclab:password@localhost:5432/cloudseclab")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
     
-    # SECRET_KEY must be provided via environment variable or .env
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "")
+    # SECRET_KEY / JWT_SECRET must be provided via environment variable or .env
+    SECRET_KEY: str = os.getenv("JWT_SECRET") or os.getenv("SECRET_KEY", "")
+    JWT_SECRET: str = os.getenv("JWT_SECRET") or os.getenv("SECRET_KEY", "")
     PUBLIC_KEY: str = os.getenv("PUBLIC_KEY", "dev-public-key")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 120
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     LOCALSTACK_ENDPOINT: str = os.getenv("LOCALSTACK_ENDPOINT", "http://localhost:4566")
-    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://cloudseclab.vercel.app")
+
     
     CONTENT_DIR: str = os.getenv("CONTENT_DIR", _default_content)
     CERTIFICATES_DIR: str = os.getenv("CERTIFICATES_DIR", _default_certs)

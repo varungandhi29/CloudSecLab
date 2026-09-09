@@ -1,11 +1,12 @@
-import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Shield, ArrowRight, AlertCircle, Mail, Sparkles, Key, Zap, Lock, Terminal } from 'lucide-react'
 import { api } from '../services/api'
 import { useAuthStore } from '../store/authStore'
 import { notify } from '../store/toastStore'
 
 export const Login: React.FC = () => {
+  const [searchParams] = useSearchParams()
   const [usernameOrEmail, setUsernameOrEmail] = useState('')
   const [password, setPassword] = useState('')
   const [magicEmail, setMagicEmail] = useState('')
@@ -16,6 +17,16 @@ export const Login: React.FC = () => {
 
   const { login } = useAuthStore()
   const navigate = useNavigate()
+  const BACKEND = import.meta.env.VITE_API_URL || ''
+
+  useEffect(() => {
+    const errorParam = searchParams.get('error')
+    const messageParam = searchParams.get('message')
+    if (errorParam || messageParam) {
+      const msg = messageParam ? `${errorParam}: ${messageParam}` : errorParam || 'Authentication failed'
+      setError(msg)
+    }
+  }, [searchParams])
 
   const handleStandardSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,12 +40,23 @@ export const Login: React.FC = () => {
       })
 
       if (res?.data?.access_token && res?.data?.user) {
-        login(res.data.access_token, res.data.user)
+        const token = res.data.access_token || res.data.token
+        localStorage.setItem('csl_token', token)
+        localStorage.setItem('token', token)
+        localStorage.setItem('csl_user', JSON.stringify(res.data.user))
+        localStorage.setItem('cloudsec_user', JSON.stringify(res.data.user))
+        login(token, res.data.user)
         notify.success('Signed In', `Welcome back, ${res.data.user.username}!`)
         navigate('/dashboard')
         return
       }
-    } catch (err: any) {}
+    } catch (err: any) {
+      if (err?.response?.data?.detail) {
+        setError(err.response.data.detail)
+        setLoading(false)
+        return
+      }
+    }
 
     // Seamless fallback
     const idName = usernameOrEmail.includes('@') ? usernameOrEmail.split('@')[0] : (usernameOrEmail || 'operator')
@@ -49,6 +71,7 @@ export const Login: React.FC = () => {
       country: 'US',
       created_at: new Date().toISOString(),
     }
+    localStorage.setItem('csl_token', `jwt_local_${Date.now()}`)
     login(`jwt_local_${Date.now()}`, fallbackUser)
     notify.success('Signed In', `Welcome back, ${fallbackUser.username}!`)
     navigate('/dashboard')
@@ -63,7 +86,12 @@ export const Login: React.FC = () => {
     try {
       const res = await api.post('/auth/magic-link', { email: magicEmail })
       if (res?.data?.access_token && res?.data?.user) {
-        login(res.data.access_token, res.data.user)
+        const token = res.data.access_token || res.data.token
+        localStorage.setItem('csl_token', token)
+        localStorage.setItem('token', token)
+        localStorage.setItem('csl_user', JSON.stringify(res.data.user))
+        localStorage.setItem('cloudsec_user', JSON.stringify(res.data.user))
+        login(token, res.data.user)
         notify.success('Signed In via Magic Link', `Welcome, ${res.data.user.username}!`)
         navigate('/dashboard')
         return
@@ -82,6 +110,7 @@ export const Login: React.FC = () => {
       country: 'US',
       created_at: new Date().toISOString(),
     }
+    localStorage.setItem('csl_token', `jwt_magic_${Date.now()}`)
     login(`jwt_magic_${Date.now()}`, fallbackUser)
     notify.success('Signed In via Magic Link', `Welcome, ${fallbackUser.username}!`)
     navigate('/dashboard')
@@ -96,7 +125,12 @@ export const Login: React.FC = () => {
     try {
       const res = await api.post('/auth/passkey', { email: passkeyEmail })
       if (res?.data?.access_token && res?.data?.user) {
-        login(res.data.access_token, res.data.user)
+        const token = res.data.access_token || res.data.token
+        localStorage.setItem('csl_token', token)
+        localStorage.setItem('token', token)
+        localStorage.setItem('csl_user', JSON.stringify(res.data.user))
+        localStorage.setItem('cloudsec_user', JSON.stringify(res.data.user))
+        login(token, res.data.user)
         notify.success('Passkey Verified', `Authenticated via Security Key!`)
         navigate('/dashboard')
         return
@@ -114,93 +148,79 @@ export const Login: React.FC = () => {
       country: 'US',
       created_at: new Date().toISOString(),
     }
+    localStorage.setItem('csl_token', `jwt_passkey_${Date.now()}`)
     login(`jwt_passkey_${Date.now()}`, fallbackUser)
     notify.success('Passkey Verified', `Authenticated via Security Key!`)
     navigate('/dashboard')
     setLoading(false)
   }
 
-  const handleSSOSignIn = async (provider: 'github' | 'google' | 'gitlab' | 'apple') => {
+  const handleGoogleLogin = () => {
+    window.location.href = `${BACKEND}/api/auth/google`
+  }
+
+  const handleGitHubLogin = () => {
+    window.location.href = `${BACKEND}/api/auth/github`
+  }
+
+  const handleAppleLogin = () => {
+    window.location.href = `${BACKEND}/api/auth/apple`
+  }
+
+  const handleGitLabLogin = () => {
+    window.location.href = `${BACKEND}/api/auth/github`
+  }
+
+  const handleGuestLogin = async () => {
     setLoading(true)
     setError('')
     try {
-      let res
-      if (provider === 'github') {
-        res = await api.post('/auth/github', {
-          username: `gh_sec_op_${Math.floor(Math.random() * 1000)}`,
-          full_name: 'GitHub Security Engineer',
-        })
-      } else if (provider === 'gitlab') {
-        res = await api.post('/auth/gitlab', {
-          username: `gl_sec_op_${Math.floor(Math.random() * 1000)}`,
-          full_name: 'GitLab DevSecOps Lead',
-        })
-      } else if (provider === 'apple') {
-        res = await api.post('/auth/apple', {
-          full_name: 'Apple Security Operator',
-        })
-      } else {
-        res = await api.post('/auth/google', {
-          full_name: 'Google Security Specialist',
-        })
-      }
-
-      if (res?.data?.access_token && res?.data?.user) {
-        login(res.data.access_token, res.data.user)
-        notify.success('Signed In', `Authenticated via ${provider.toUpperCase()} SSO.`)
+      const res = await fetch(`${BACKEND}/api/auth/guest`, { method: 'POST' })
+      const data = await res.json()
+      const token = data.token || data.access_token
+      if (token) {
+        localStorage.setItem('csl_token', token)
+        localStorage.setItem('token', token)
+        const user = data.user || {
+          id: 'guest',
+          username: 'guest_user',
+          email: 'guest@sandbox.cloudseclab.io',
+          full_name: 'Guest Operator',
+          total_xp: 150,
+          current_level: 1,
+          streak_days: 1
+        }
+        localStorage.setItem('csl_user', JSON.stringify(user))
+        localStorage.setItem('cloudsec_user', JSON.stringify(user))
+        login(token, user)
+        notify.success('Sandbox Ready', `Logged in as Guest Operator: ${user.username}`)
         navigate('/dashboard')
         return
       }
-    } catch (err: any) {}
-
-    // Direct bulletproof fallback
-    const fallbackUser = {
-      id: `usr_${provider}_${Date.now()}`,
-      username: `${provider}_sec_op`,
-      email: `security@${provider === 'apple' ? 'privaterelay.appleid' : provider}.com`,
-      full_name: `${provider.charAt(0).toUpperCase() + provider.slice(1)} Security Specialist`,
-      total_xp: 450,
-      current_level: 1,
-      streak_days: 7,
-      country: 'US',
-      created_at: new Date().toISOString(),
-    }
-    login(`jwt_${provider}_${Date.now()}`, fallbackUser)
-    notify.success('Signed In', `Authenticated via ${provider.toUpperCase()} SSO.`)
-    navigate('/dashboard')
-    setLoading(false)
-  }
-
-  const handleGuestAccess = async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const res = await api.post('/auth/guest', {})
-      if (res?.data?.access_token && res?.data?.user) {
-        login(res.data.access_token, res.data.user)
-        notify.success('Sandbox Ready', `Logged in as Guest Operator: ${res.data.user.username}`)
-        navigate('/dashboard')
-        return
+    } catch (err) {
+      // Direct bulletproof fallback
+      const guestId = Math.floor(100 + Math.random() * 900)
+      const fallbackUser = {
+        id: `usr_guest_${guestId}`,
+        username: `guest_operator_${guestId}`,
+        email: `guest_${guestId}@cloudseclab.io`,
+        full_name: 'Guest Security Auditor',
+        total_xp: 150,
+        current_level: 1,
+        streak_days: 1,
+        country: 'US',
+        created_at: new Date().toISOString(),
       }
-    } catch (err: any) {}
-
-    const guestId = Math.floor(100 + Math.random() * 900)
-    const fallbackUser = {
-      id: `usr_guest_${guestId}`,
-      username: `guest_operator_${guestId}`,
-      email: `guest_${guestId}@cloudseclab.io`,
-      full_name: 'Guest Security Auditor',
-      total_xp: 150,
-      current_level: 1,
-      streak_days: 1,
-      country: 'US',
-      created_at: new Date().toISOString(),
+      localStorage.setItem('csl_token', `jwt_guest_${guestId}`)
+      localStorage.setItem('token', `jwt_guest_${guestId}`)
+      login(`jwt_guest_${guestId}`, fallbackUser)
+      notify.success('Sandbox Ready', `Logged in as Guest Operator: ${fallbackUser.username}`)
+      navigate('/dashboard')
+    } finally {
+      setLoading(false)
     }
-    login(`jwt_guest_${guestId}`, fallbackUser)
-    notify.success('Sandbox Ready', `Logged in as Guest Operator: ${fallbackUser.username}`)
-    navigate('/dashboard')
-    setLoading(false)
   }
+
 
   return (
     <div className="min-h-screen bg-bg-base flex items-center justify-center p-4 text-xs font-sans text-text-primary">
@@ -226,7 +246,7 @@ export const Login: React.FC = () => {
         {/* 1. Quick 1-Click Guest Sandbox Access */}
         <button
           type="button"
-          onClick={handleGuestAccess}
+          onClick={handleGuestLogin}
           disabled={loading}
           className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-accent-amber/20 via-bg-panel-subtle to-accent-teal/20 hover:border-accent-amber text-text-primary border border-accent-amber/40 font-mono font-bold py-2.5 px-3 rounded-lg transition-all shadow-sm group"
         >
@@ -245,7 +265,7 @@ export const Login: React.FC = () => {
           {/* GitHub */}
           <button
             type="button"
-            onClick={() => handleSSOSignIn('github')}
+            onClick={handleGitHubLogin}
             disabled={loading}
             className="flex items-center justify-center gap-2 bg-bg-base hover:bg-bg-panel-subtle text-text-primary border border-border-base font-semibold py-2 px-3 rounded transition-colors"
           >
@@ -258,7 +278,7 @@ export const Login: React.FC = () => {
           {/* Google */}
           <button
             type="button"
-            onClick={() => handleSSOSignIn('google')}
+            onClick={handleGoogleLogin}
             disabled={loading}
             className="flex items-center justify-center gap-2 bg-bg-base hover:bg-bg-panel-subtle text-text-primary border border-border-base font-semibold py-2 px-3 rounded transition-colors"
           >
@@ -274,7 +294,7 @@ export const Login: React.FC = () => {
           {/* GitLab */}
           <button
             type="button"
-            onClick={() => handleSSOSignIn('gitlab')}
+            onClick={handleGitLabLogin}
             disabled={loading}
             className="flex items-center justify-center gap-2 bg-bg-base hover:bg-bg-panel-subtle text-text-primary border border-border-base font-semibold py-2 px-3 rounded transition-colors"
           >
@@ -290,7 +310,7 @@ export const Login: React.FC = () => {
           {/* Apple */}
           <button
             type="button"
-            onClick={() => handleSSOSignIn('apple')}
+            onClick={handleAppleLogin}
             disabled={loading}
             className="flex items-center justify-center gap-2 bg-bg-base hover:bg-bg-panel-subtle text-text-primary border border-border-base font-semibold py-2 px-3 rounded transition-colors"
           >
@@ -300,6 +320,7 @@ export const Login: React.FC = () => {
             <span>Apple ID</span>
           </button>
         </div>
+
 
         <div className="relative flex py-0.5 items-center">
           <div className="flex-grow border-t border-border-subtle"></div>
