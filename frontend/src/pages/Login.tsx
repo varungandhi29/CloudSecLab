@@ -155,81 +155,43 @@ export const Login: React.FC = () => {
     setLoading(false)
   }
 
+  const BACKEND_URL = import.meta.env.VITE_API_URL || window.location.origin
+
   const handleGoogleLogin = () => {
-    const googleClientId =
-      import.meta.env.VITE_GOOGLE_CLIENT_ID || '868947967070-7o0tc8jul2b0so7hgremgricpjl597hf.apps.googleusercontent.com'
-    const redirectUri = `${window.location.origin}/auth/callback/google`
-    const params = new URLSearchParams({
-      client_id: googleClientId,
-      redirect_uri: redirectUri,
-      response_type: 'token id_token',
-      scope: 'openid email profile',
-      nonce: Math.random().toString(36).substring(2),
-      prompt: 'select_account',
-    })
-    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
+    // Hard redirect to backend — no fetch, no mock
+    window.location.href = `${BACKEND_URL}/api/auth/google`
   }
 
-
   const handleGitHubLogin = () => {
-    window.location.href = `${BACKEND}/api/auth/github`
+    window.location.href = `${BACKEND_URL}/api/auth/github`
   }
 
   const handleAppleLogin = () => {
-    window.location.href = `${BACKEND}/api/auth/apple`
+    window.location.href = `${BACKEND_URL}/api/auth/apple`
   }
 
   const handleGitLabLogin = () => {
-    window.location.href = `${BACKEND}/api/auth/github`
+    window.location.href = `${BACKEND_URL}/api/auth/github`
   }
 
   const handleGuestLogin = async () => {
-    setLoading(true)
-    setError('')
     try {
-      const res = await fetch(`${BACKEND}/api/auth/guest`, { method: 'POST' })
+      const res = await fetch(`${BACKEND_URL}/api/auth/guest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
       const data = await res.json()
-      const token = data.token || data.access_token
-      if (token) {
-        localStorage.setItem('csl_token', token)
-        localStorage.setItem('token', token)
-        const user = data.user || {
-          id: 'guest',
-          username: 'guest_user',
-          email: 'guest@sandbox.cloudseclab.io',
-          full_name: 'Guest Operator',
-          total_xp: 150,
-          current_level: 1,
-          streak_days: 1
-        }
-        localStorage.setItem('csl_user', JSON.stringify(user))
-        localStorage.setItem('cloudsec_user', JSON.stringify(user))
-        login(token, user)
-        notify.success('Sandbox Ready', `Logged in as Guest Operator: ${user.username}`)
-        navigate('/dashboard')
-        return
+      if (data.token) {
+        localStorage.setItem('csl_token', data.token)
+        localStorage.setItem('token', data.token)
+        localStorage.setItem('csl_user', JSON.stringify(data.user))
+        localStorage.setItem('cloudsec_user', JSON.stringify(data.user))
+        window.location.href = '/dashboard'
+      } else {
+        setError('Guest login failed')
       }
-    } catch (err) {
-      // Direct bulletproof fallback
-      const guestId = Math.floor(100 + Math.random() * 900)
-      const fallbackUser = {
-        id: `usr_guest_${guestId}`,
-        username: `guest_operator_${guestId}`,
-        email: `guest_${guestId}@cloudseclab.io`,
-        full_name: 'Guest Security Auditor',
-        total_xp: 150,
-        current_level: 1,
-        streak_days: 1,
-        country: 'US',
-        created_at: new Date().toISOString(),
-      }
-      localStorage.setItem('csl_token', `jwt_guest_${guestId}`)
-      localStorage.setItem('token', `jwt_guest_${guestId}`)
-      login(`jwt_guest_${guestId}`, fallbackUser)
-      notify.success('Sandbox Ready', `Logged in as Guest Operator: ${fallbackUser.username}`)
-      navigate('/dashboard')
-    } finally {
-      setLoading(false)
+    } catch {
+      setError('Connection error — try again')
     }
   }
 

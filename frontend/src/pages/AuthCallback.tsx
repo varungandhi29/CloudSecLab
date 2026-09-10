@@ -113,7 +113,7 @@ export default function AuthCallback() {
       if (path.includes('apple')) provider = 'apple'
       setStatus(`Completing ${provider.toUpperCase()} login...`)
 
-      const backendBase = import.meta.env.VITE_API_URL || ''
+      const backendBase = import.meta.env.VITE_API_URL || window.location.origin
       fetch(`${backendBase}/api/auth/${provider}/callback?code=${encodeURIComponent(code)}`)
         .then((r) => {
           if (r.redirected) {

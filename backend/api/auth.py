@@ -2,8 +2,11 @@ import os
 import uuid
 import base64
 import json
+import random
+import string
+import asyncio
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Union, Tuple
 from urllib.parse import urlencode
 
 import httpx
@@ -24,6 +27,11 @@ from services.auth_service import (
     create_refresh_token,
     decode_token
 )
+from services.email_service import (
+    send_otp_email,
+    send_welcome_email,
+    send_login_notification
+)
 
 router = APIRouter()
 security = HTTPBearer(auto_error=False)
@@ -32,16 +40,64 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "https://cloudseclab.vercel.app").rstri
 JWT_SECRET = os.getenv("JWT_SECRET") or settings.SECRET_KEY or "cloudseclab-jwt-secret-2024"
 JWT_EXPIRE_HOURS = 24
 
+# In-memory OTP storage: { email: { "otp": "123456", "full_name": "...", "username": "...", "password_hash": "...", "expires_at": timestamp } }
+otp_store: dict[str, dict] = {}
 
+
+def generate_otp() -> str:
+    """Generate a 6-digit numeric OTP"""
+    return ''.join(random.choices(string.digits, k=6))
+
+
+def get_client_ip(request: Request) -> str:
+    """Extract client IP from proxy headers or direct connection"""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip.strip()
+    if request.client and request.client.host:
+        return request.client.host
+    return "Unknown"
+
+
+async def get_client_geo(ip: str) -> tuple[Optional[str], Optional[str]]:
+    """Lookup city and country from IP address"""
+    if not ip or ip in ("127.0.0.1", "localhost", "::1", "Unknown"):
+        return None, None
+    try:
+        async with httpx.AsyncClient() as client:
+            geo = await client.get(f"http://ip-api.com/json/{ip}?fields=city,country", timeout=3.0)
+            if geo.status_code == 200:
+                data = geo.json()
+                return data.get("city"), data.get("country")
+    except Exception:
+        pass
+    return None, None
+
+
+# ─── PYDANTIC REQUEST MODELS ──────────────────────────
 class RegisterRequest(BaseModel):
     email: str
-    username: str
-    full_name: str
     password: str
+    full_name: str
+    username: str = ""
+
+
+class VerifyOTPRequest(BaseModel):
+    email: str
+    otp: str
+
+
+class ResendOTPRequest(BaseModel):
+    email: str
 
 
 class LoginRequest(BaseModel):
-    username_or_email: str
+    username_or_email: Optional[str] = None
+    email: Optional[str] = None
+    username: Optional[str] = None
     password: str
 
 
@@ -89,6 +145,7 @@ class MagicLinkRequest(BaseModel):
     email: str
 
 
+# ─── TOKEN & USER HELPERS ─────────────────────────────
 def create_token(user_data: dict) -> str:
     """Generate HS256 JWT containing user profile and claims"""
     user_id = str(user_data.get("user_id") or user_data.get("id") or "")
@@ -104,10 +161,21 @@ def create_token(user_data: dict) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
 
-def get_or_create_user(db: Session, email: str, full_name: str, avatar_url: Optional[str] = None, provider: str = "google") -> dict:
-    """Find existing user or create a new verified user from OAuth identity"""
+def get_or_create_user(
+    db: Session,
+    email: str,
+    full_name: str,
+    avatar_url: Optional[str] = None,
+    provider: str = "google",
+    request_ip: Optional[str] = None,
+    city: Optional[str] = None,
+    country: Optional[str] = None
+) -> tuple[dict, bool]:
+    """Find existing user or create a new verified user, dispatching welcome and login notifications"""
     user = db.query(User).filter(User.email == email).first()
-    if not user:
+    is_new = user is None
+
+    if is_new:
         base_username = email.split("@")[0].replace(".", "_")
         username = base_username
         existing = db.query(User).filter(User.username == username).first()
@@ -142,7 +210,7 @@ def get_or_create_user(db: Session, email: str, full_name: str, avatar_url: Opti
         db.commit()
         db.refresh(user)
 
-    return {
+    user_data = {
         "user_id": str(user.id),
         "id": str(user.id),
         "email": user.email,
@@ -157,6 +225,19 @@ def get_or_create_user(db: Session, email: str, full_name: str, avatar_url: Opti
         "provider": provider,
         "auth_provider": provider
     }
+
+    # Dispatch welcome email on registration and login notification on every sign-in
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            if is_new and provider != "guest":
+                loop.create_task(send_welcome_email(email, user.full_name, provider))
+            if provider != "guest":
+                loop.create_task(send_login_notification(email, user.full_name, provider, request_ip, city, country))
+    except Exception as e:
+        print(f"[AUTH] Background notification dispatch error: {e}")
+
+    return user_data, is_new
 
 
 def get_current_user(
@@ -230,8 +311,13 @@ async def google_login():
 
 
 @router.get("/google/callback")
-async def google_callback(code: Optional[str] = None, error: Optional[str] = None, db: Session = Depends(get_db)):
-    """Handle Google OAuth callback"""
+async def google_callback(
+    request: Request,
+    code: Optional[str] = None,
+    error: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Handle Google OAuth callback, persist user, send login notification, and issue JWT"""
     if error:
         return RedirectResponse(f"{FRONTEND_URL}/login?error=google_failed&message={error}")
     if not code:
@@ -242,7 +328,6 @@ async def google_callback(code: Optional[str] = None, error: Optional[str] = Non
         if not client_id or not client_secret:
             return RedirectResponse(f"{FRONTEND_URL}/login?error=google_not_configured&message=Google%20OAuth%20credentials%20not%20configured")
 
-        # Exchange code for tokens
         async with httpx.AsyncClient() as client:
             token_res = await client.post(
                 "https://oauth2.googleapis.com/token",
@@ -259,7 +344,7 @@ async def google_callback(code: Optional[str] = None, error: Optional[str] = Non
                 err_msg = token_data.get("error_description") or token_data["error"]
                 return RedirectResponse(f"{FRONTEND_URL}/login?error=google_failed&message={err_msg}")
 
-            # Get user profile
+            # Get user profile from Google UserInfo endpoint
             user_res = await client.get(
                 "https://www.googleapis.com/oauth2/v3/userinfo",
                 headers={"Authorization": f"Bearer {token_data['access_token']}"}
@@ -268,12 +353,18 @@ async def google_callback(code: Optional[str] = None, error: Optional[str] = Non
             if "error" in profile:
                 return RedirectResponse(f"{FRONTEND_URL}/login?error=google_failed&message={profile.get('error_description', 'Failed to fetch Google profile')}")
 
-            user_data = get_or_create_user(
+            client_ip = get_client_ip(request)
+            city, country = await get_client_geo(client_ip)
+
+            user_data, is_new = get_or_create_user(
                 db,
                 email=profile["email"],
                 full_name=profile.get("name", profile["email"]),
                 avatar_url=profile.get("picture"),
-                provider="google"
+                provider="google",
+                request_ip=client_ip,
+                city=city,
+                country=country
             )
             token = create_token(user_data)
             return RedirectResponse(f"{FRONTEND_URL}/auth/success?token={token}")
@@ -301,8 +392,13 @@ async def github_login():
 
 
 @router.get("/github/callback")
-async def github_callback(code: Optional[str] = None, error: Optional[str] = None, db: Session = Depends(get_db)):
-    """Handle GitHub OAuth callback"""
+async def github_callback(
+    request: Request,
+    code: Optional[str] = None,
+    error: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Handle GitHub OAuth callback, persist user, send login notification, and issue JWT"""
     if error:
         return RedirectResponse(f"{FRONTEND_URL}/login?error=github_failed&message={error}")
     if not code:
@@ -314,7 +410,6 @@ async def github_callback(code: Optional[str] = None, error: Optional[str] = Non
             return RedirectResponse(f"{FRONTEND_URL}/login?error=github_not_configured&message=GitHub%20OAuth%20credentials%20not%20configured")
 
         async with httpx.AsyncClient() as client:
-            # Exchange code for token
             token_res = await client.post(
                 "https://github.com/login/oauth/access_token",
                 data={
@@ -332,14 +427,14 @@ async def github_callback(code: Optional[str] = None, error: Optional[str] = Non
 
             access_token = token_data["access_token"]
 
-            # Get user profile
+            # Query user profile
             user_res = await client.get(
                 "https://api.github.com/user",
                 headers={"Authorization": f"Bearer {access_token}", "User-Agent": "CloudSecLab-Auth"}
             )
             profile = user_res.json()
 
-            # Get primary verified email
+            # Query verified email
             email_res = await client.get(
                 "https://api.github.com/user/emails",
                 headers={"Authorization": f"Bearer {access_token}", "User-Agent": "CloudSecLab-Auth"}
@@ -354,12 +449,18 @@ async def github_callback(code: Optional[str] = None, error: Optional[str] = Non
             if not primary_email:
                 primary_email = profile.get("email") or f"{profile.get('login', 'user')}@github.com"
 
-            user_data = get_or_create_user(
+            client_ip = get_client_ip(request)
+            city, country = await get_client_geo(client_ip)
+
+            user_data, is_new = get_or_create_user(
                 db,
                 email=primary_email,
                 full_name=profile.get("name") or profile.get("login") or "GitHub User",
                 avatar_url=profile.get("avatar_url"),
-                provider="github"
+                provider="github",
+                request_ip=client_ip,
+                city=city,
+                country=country
             )
             token = create_token(user_data)
             return RedirectResponse(f"{FRONTEND_URL}/auth/success?token={token}")
@@ -389,14 +490,13 @@ async def apple_login():
 
 @router.post("/apple/callback")
 async def apple_callback_post(request: Request, db: Session = Depends(get_db)):
-    """Handle Apple OAuth callback — Apple uses POST with id_token"""
+    """Handle Apple OAuth callback POST with id_token"""
     try:
         form = await request.form()
         id_token = form.get("id_token")
         if not id_token:
             return RedirectResponse(f"{FRONTEND_URL}/login?error=apple_failed&message=No%20id_token%20from%20Apple")
 
-        # Decode Apple JWT payload
         payload_part = str(id_token).split(".")[1]
         padding = 4 - len(payload_part) % 4
         payload_part += "=" * (padding % 4)
@@ -417,11 +517,17 @@ async def apple_callback_post(request: Request, db: Session = Depends(get_db)):
         if not full_name:
             full_name = form.get("user_name") or email.split("@")[0]
 
-        user_data = get_or_create_user(
+        client_ip = get_client_ip(request)
+        city, country = await get_client_geo(client_ip)
+
+        user_data, is_new = get_or_create_user(
             db,
             email=email,
             full_name=full_name,
-            provider="apple"
+            provider="apple",
+            request_ip=client_ip,
+            city=city,
+            country=country
         )
         token = create_token(user_data)
         return RedirectResponse(f"{FRONTEND_URL}/auth/success?token={token}")
@@ -436,7 +542,7 @@ async def apple_callback_get(code: Optional[str] = None, error: Optional[str] = 
         return RedirectResponse(f"{FRONTEND_URL}/login?error=apple_failed&message={error}")
     if code:
         email = f"apple_{str(uuid.uuid4())[:8]}@privaterelay.appleid.com"
-        user_data = get_or_create_user(
+        user_data, _ = get_or_create_user(
             db,
             email=email,
             full_name="Apple Operator",
@@ -450,13 +556,13 @@ async def apple_callback_get(code: Optional[str] = None, error: Optional[str] = 
 # ─── GUEST / SANDBOX PASS ───────────────────────────
 @router.post("/guest")
 async def guest_login(req: Optional[GuestAuthRequest] = None, response: Response = None, db: Session = Depends(get_db)):
-    """1-click sandbox access — no account needed"""
+    """1-click sandbox access — instant sandbox token without third-party credentials"""
     guest_id = str(uuid.uuid4())[:8]
     username = f"guest_{guest_id}"
     email = f"guest_{guest_id}@sandbox.cloudseclab.io"
     full_name = (req.nickname if req and req.nickname else None) or f"Guest User {guest_id}"
 
-    user_data = get_or_create_user(
+    user_data, _ = get_or_create_user(
         db,
         email=email,
         full_name=full_name,
@@ -479,64 +585,77 @@ async def guest_login(req: Optional[GuestAuthRequest] = None, response: Response
     }
 
 
-# ─── STANDARD AUTH & SSO POST HANDLERS ───────────────
+# ─── STEP 1: REGISTER & SEND OTP ─────────────────────
 @router.post("/register")
-def register(req: RegisterRequest, response: Response, db: Session = Depends(get_db)):
-    if db.query(User).filter((User.email == req.email) | (User.username == req.username)).first():
-        raise HTTPException(status_code=400, detail="Username or Email already registered")
+async def register(req: RegisterRequest, db: Session = Depends(get_db)):
+    """Step 1: Check existing email, generate 6-digit OTP, send email verification code"""
+    req_username = req.username or req.email.split("@")[0]
+    existing = db.query(User).filter((User.email == req.email) | (User.username == req_username)).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="An account with this email already exists")
 
+    otp = generate_otp()
+    otp_store[req.email] = {
+        "otp": otp,
+        "full_name": req.full_name,
+        "username": req_username,
+        "password_hash": get_password_hash(req.password),
+        "expires_at": datetime.utcnow().timestamp() + 600  # 10 minutes
+    }
+
+    sent = await send_otp_email(req.email, req.full_name, otp)
+    if not sent:
+        print(f"[AUTH] Fallback log: OTP for {req.email} is {otp}")
+
+    return {
+        "success": True,
+        "message": "Verification code sent to your email",
+        "email": req.email,
+        "otp_sent": sent
+    }
+
+
+# ─── STEP 2: VERIFY OTP & CREATE ACCOUNT ─────────────
+@router.post("/verify-otp")
+async def verify_otp(req: VerifyOTPRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+    """Step 2: Verify OTP, create verified account, send welcome email, return JWT token"""
+    stored = otp_store.get(req.email)
+    if not stored:
+        raise HTTPException(status_code=400, detail="No pending verification for this email. Please register again.")
+
+    if datetime.utcnow().timestamp() > stored["expires_at"]:
+        del otp_store[req.email]
+        raise HTTPException(status_code=400, detail="Verification code expired. Please register again.")
+
+    if stored["otp"] != req.otp.strip():
+        raise HTTPException(status_code=400, detail="Incorrect verification code. Please try again.")
+
+    # Create verified user in database
     user = User(
         email=req.email,
-        username=req.username,
-        full_name=req.full_name,
-        password_hash=get_password_hash(req.password),
-        provider="email",
+        full_name=stored["full_name"],
+        username=stored["username"],
+        password_hash=stored["password_hash"],
         auth_provider="email",
+        provider="email",
         is_verified=True,
         is_active=True,
+        total_xp=100,
+        current_level=1,
+        streak_days=1,
         created_at=datetime.utcnow()
     )
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    user_data = {
-        "user_id": str(user.id),
-        "id": str(user.id),
-        "username": user.username,
-        "email": user.email,
-        "full_name": user.full_name,
-        "total_xp": user.total_xp or 0,
-        "current_level": user.current_level or 1,
-        "streak_days": user.streak_days or 0,
-        "provider": user.provider or "email",
-        "auth_provider": user.auth_provider or "email"
-    }
-    access_token = create_token(user_data)
-    refresh_token = create_refresh_token({"sub": user.id})
+    del otp_store[req.email]
 
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, samesite="lax")
-
-    return {
-        "access_token": access_token,
-        "token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "user": user_data
-    }
-
-
-@router.post("/login")
-def login(req: LoginRequest, response: Response, db: Session = Depends(get_db)):
-    user = db.query(User).filter(
-        (User.username == req.username_or_email) | (User.email == req.username_or_email)
-    ).first()
-
-    if not user or not user.password_hash or not verify_password(req.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid username/email or password")
-
-    user.last_login = datetime.utcnow()
-    db.commit()
+    # Non-blocking welcome email and login notification
+    client_ip = get_client_ip(request)
+    city, country = await get_client_geo(client_ip)
+    await send_welcome_email(req.email, stored["full_name"], "email")
+    asyncio.create_task(send_login_notification(req.email, stored["full_name"], "email", client_ip, city, country))
 
     user_data = {
         "user_id": str(user.id),
@@ -548,26 +667,105 @@ def login(req: LoginRequest, response: Response, db: Session = Depends(get_db)):
         "current_level": user.current_level or 1,
         "streak_days": user.streak_days or 0,
         "country": user.country or "US",
-        "bio": user.bio or "Cloud Security Enthusiast",
-        "provider": user.provider or "email",
-        "auth_provider": user.auth_provider or "email"
+        "provider": "email",
+        "auth_provider": "email"
     }
-    access_token = create_token(user_data)
+    token = create_token(user_data)
     refresh_token = create_refresh_token({"sub": user.id})
 
     response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, samesite="lax")
 
     return {
-        "access_token": access_token,
-        "token": access_token,
+        "success": True,
+        "message": "Account created successfully",
+        "token": token,
+        "access_token": token,
+        "refresh_token": refresh_token,
+        "user": user_data
+    }
+
+
+# ─── RESEND OTP ──────────────────────────────────────
+@router.post("/resend-otp")
+async def resend_otp(email: Optional[str] = None, req: Optional[ResendOTPRequest] = None):
+    """Resend 6-digit OTP to pending email"""
+    target_email = (req.email if req else None) or email
+    if not target_email or target_email not in otp_store:
+        raise HTTPException(status_code=400, detail="No pending verification found for this email")
+
+    stored = otp_store[target_email]
+    otp = generate_otp()
+    stored["otp"] = otp
+    stored["expires_at"] = datetime.utcnow().timestamp() + 600
+    otp_store[target_email] = stored
+
+    sent = await send_otp_email(target_email, stored["full_name"], otp)
+    return {"success": True, "message": "New verification code sent", "otp_sent": sent}
+
+
+# ─── STANDARD LOGIN WITH NOTIFICATION ────────────────
+@router.post("/login")
+async def login(req: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)):
+    """Email or username password sign-in with asynchronous login security notification"""
+    login_id = req.username_or_email or req.email or req.username
+    if not login_id:
+        raise HTTPException(status_code=400, detail="Username or email is required")
+
+    user = db.query(User).filter(
+        (User.username == login_id) | (User.email == login_id)
+    ).first()
+
+    if not user or not user.password_hash or not verify_password(req.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is disabled")
+
+    user.last_login = datetime.utcnow()
+    db.commit()
+
+    # Determine client IP and location for security email
+    client_ip = get_client_ip(request)
+    city, country = await get_client_geo(client_ip)
+
+    user_data = {
+        "user_id": str(user.id),
+        "id": str(user.id),
+        "username": user.username,
+        "email": user.email,
+        "full_name": user.full_name,
+        "avatar_url": user.avatar_url,
+        "total_xp": user.total_xp or 0,
+        "current_level": user.current_level or 1,
+        "streak_days": user.streak_days or 0,
+        "country": user.country or "US",
+        "bio": user.bio or "Cloud Security Enthusiast",
+        "provider": user.auth_provider or "email",
+        "auth_provider": user.auth_provider or "email"
+    }
+    token = create_token(user_data)
+    refresh_token = create_refresh_token({"sub": user.id})
+
+    # Dispatch non-blocking login security notification email
+    asyncio.create_task(send_login_notification(
+        user.email, user.full_name, user.auth_provider or "email", client_ip, city, country
+    ))
+
+    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, samesite="lax")
+
+    return {
+        "success": True,
+        "token": token,
+        "access_token": token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
         "user": user_data
     }
 
 
+# ─── MAGIC LINK & PASSKEY ────────────────────────────
 @router.post("/magic-link")
-def send_magic_link(req: MagicLinkRequest, response: Response, db: Session = Depends(get_db)):
+async def send_magic_link(req: MagicLinkRequest, response: Response = None, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == req.email).first()
     if not user:
         username = req.email.split("@")[0].replace(".", "_")
@@ -600,7 +798,8 @@ def send_magic_link(req: MagicLinkRequest, response: Response, db: Session = Dep
     access_token = create_token(user_data)
     refresh_token = create_refresh_token({"sub": user.id})
 
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, samesite="lax")
+    if response:
+        response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, samesite="lax")
 
     return {
         "access_token": access_token,
@@ -613,7 +812,7 @@ def send_magic_link(req: MagicLinkRequest, response: Response, db: Session = Dep
 
 
 @router.post("/passkey")
-def passkey_auth(req: PasskeyAuthRequest, response: Response, db: Session = Depends(get_db)):
+async def passkey_auth(req: PasskeyAuthRequest, response: Response = None, db: Session = Depends(get_db)):
     email = req.email or f"fido2_key_{str(uuid.uuid4())[:8]}@passkey.auth"
     user = db.query(User).filter(User.email == email).first()
 
@@ -654,7 +853,8 @@ def passkey_auth(req: PasskeyAuthRequest, response: Response, db: Session = Depe
     access_token = create_token(user_data)
     refresh_token = create_refresh_token({"sub": user.id})
 
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, samesite="lax")
+    if response:
+        response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, samesite="lax")
 
     return {
         "access_token": access_token,
@@ -665,6 +865,7 @@ def passkey_auth(req: PasskeyAuthRequest, response: Response, db: Session = Depe
     }
 
 
+# ─── SESSION MANAGEMENT ──────────────────────────────
 @router.post("/refresh")
 def refresh(refresh_token: Optional[str] = Cookie(None), db: Session = Depends(get_db)):
     if not refresh_token:

@@ -1,6 +1,12 @@
 import axios from 'axios'
 import { handleMockRequest } from './mockBackend'
 
+export const API_URL = import.meta.env.VITE_API_URL || window.location.origin
+
+export const isOAuthConfigured = () => {
+  return API_URL !== '' && !API_URL.includes('localhost')
+}
+
 const getApiBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_URL
   if (envUrl && typeof envUrl === 'string' && envUrl.trim() !== '') {
