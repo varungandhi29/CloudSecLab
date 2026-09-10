@@ -69,13 +69,25 @@ export const Register: React.FC = () => {
 
   const handleSSORegister = (provider: 'github' | 'google' | 'gitlab' | 'apple') => {
     if (provider === 'google') {
-      window.location.href = `${BACKEND}/api/auth/google`
+      const googleClientId =
+        import.meta.env.VITE_GOOGLE_CLIENT_ID || '868947967070-7o0tc8jul2b0so7hgremgricpjl597hf.apps.googleusercontent.com'
+      const redirectUri = `${window.location.origin}/auth/callback/google`
+      const params = new URLSearchParams({
+        client_id: googleClientId,
+        redirect_uri: redirectUri,
+        response_type: 'token id_token',
+        scope: 'openid email profile',
+        nonce: Math.random().toString(36).substring(2),
+        prompt: 'select_account',
+      })
+      window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
     } else if (provider === 'github' || provider === 'gitlab') {
       window.location.href = `${BACKEND}/api/auth/github`
     } else if (provider === 'apple') {
       window.location.href = `${BACKEND}/api/auth/apple`
     }
   }
+
 
   const handleGuestAccess = async () => {
     setLoading(true)

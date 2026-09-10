@@ -12,9 +12,15 @@ export default function AuthCallback() {
   const { login } = useAuthStore()
 
   useEffect(() => {
-    const token = searchParams.get('token')
-    const error = searchParams.get('error')
-    const message = searchParams.get('message')
+    // Check both searchParams (?key=val) and hash (#key=val)
+    const hash = window.location.hash.startsWith('#') ? window.location.hash.substring(1) : ''
+    const hashParams = new URLSearchParams(hash)
+
+    const token = searchParams.get('token') || hashParams.get('token')
+    const idToken = hashParams.get('id_token') || searchParams.get('id_token')
+    const accessToken = hashParams.get('access_token')
+    const error = searchParams.get('error') || hashParams.get('error')
+    const message = searchParams.get('message') || hashParams.get('error_description')
     const code = searchParams.get('code')
 
     if (error) {
@@ -25,12 +31,57 @@ export default function AuthCallback() {
       return
     }
 
+    // Direct Google/Apple OIDC id_token flow
+    if (idToken) {
+      try {
+        const payloadPart = idToken.split('.')[1]
+        const normalized = payloadPart.replace(/-/g, '+').replace(/_/g, '/')
+        const padding = 4 - (normalized.length % 4)
+        const padded = padding < 4 ? normalized + '='.repeat(padding) : normalized
+        const payload = JSON.parse(atob(padded))
+
+        const email = payload.email || `google_user_${Date.now()}@gmail.com`
+        const fullName = payload.name || payload.given_name || email.split('@')[0]
+        const username = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_')
+
+        const userObj = {
+          id: payload.sub || `usr_${Date.now()}`,
+          username: username,
+          email: email,
+          full_name: fullName,
+          avatar_url: payload.picture,
+          total_xp: 500,
+          current_level: 1,
+          streak_days: 1,
+          country: 'US',
+          provider: 'google',
+          auth_provider: 'google',
+          created_at: new Date().toISOString()
+        }
+
+        const jwtToken = accessToken || idToken
+        localStorage.setItem('csl_token', jwtToken)
+        localStorage.setItem('token', jwtToken)
+        localStorage.setItem('csl_user', JSON.stringify(userObj))
+        localStorage.setItem('cloudsec_user', JSON.stringify(userObj))
+        login(jwtToken, userObj)
+        notify.success('Signed In with Google', `Welcome back, ${userObj.full_name}!`)
+        setStatus('Login successful! Redirecting...')
+        navigate('/dashboard')
+        return
+      } catch (e) {}
+    }
+
     if (token) {
       // Token received directly — store and redirect to dashboard
       localStorage.setItem('csl_token', token)
       localStorage.setItem('token', token)
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]))
+        const payloadPart = token.split('.')[1]
+        const normalized = payloadPart.replace(/-/g, '+').replace(/_/g, '/')
+        const padding = 4 - (normalized.length % 4)
+        const padded = padding < 4 ? normalized + '='.repeat(padding) : normalized
+        const payload = JSON.parse(atob(padded))
         localStorage.setItem('csl_user', JSON.stringify(payload))
         localStorage.setItem('cloudsec_user', JSON.stringify(payload))
         login(token, payload)
@@ -110,6 +161,7 @@ export default function AuthCallback() {
         })
     }
   }, [searchParams, navigate, login])
+
 
   return (
     <div
