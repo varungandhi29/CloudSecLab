@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     
     LOCALSTACK_ENDPOINT: str = os.getenv("LOCALSTACK_ENDPOINT", "http://localhost:4566")
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://cloudseclab.vercel.app")
+    RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
+
+
 
     
     CONTENT_DIR: str = os.getenv("CONTENT_DIR", _default_content)
