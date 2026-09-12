@@ -35,27 +35,47 @@ def run_seed():
         verification_id = 'CSL-2026-BGN-98F2A10B'
         existing_cert = db.query(Certificate).filter(Certificate.verification_id == verification_id).first()
         if not existing_cert:
-            logger.info('Seeding initial public verification certificate: %s', verification_id)
-            pdf_path = CertificateService.generate_pdf(
-                verification_id=verification_id,
-                full_name='Alex Vance',
-                cert_type='beginner',
-                score=96.5
-            )
-            cert = Certificate(
-                id=str(uuid.uuid4()),
-                user_id=str(uuid.uuid4()),
-                certificate_type='beginner',
-                verification_id=verification_id,
-                issued_at=datetime.utcnow(),
-                user_full_name='Alex Vance',
-                exam_score=96.5,
-                is_valid=True,
-                pdf_path=pdf_path
-            )
-            db.add(cert)
-            db.commit()
-            logger.info('Starter certificate record created and verified successfully.')
+            try:
+                logger.info('Seeding initial public verification certificate: %s', verification_id)
+                sample_user = db.query(User).filter(User.username == 'alex_vance').first()
+                if not sample_user:
+                    sample_user = User(
+                        id=str(uuid.uuid4()),
+                        username='alex_vance',
+                        email='alex.vance@cloudseclab.io',
+                        full_name='Alex Vance',
+                        password_hash=get_password_hash(secrets.token_urlsafe(16)),
+                        total_xp=2500,
+                        current_level=10,
+                        country='US'
+                    )
+                    db.add(sample_user)
+                    db.commit()
+                    db.refresh(sample_user)
+
+                pdf_path = CertificateService.generate_pdf(
+                    verification_id=verification_id,
+                    full_name='Alex Vance',
+                    cert_type='beginner',
+                    score=96.5
+                )
+                cert = Certificate(
+                    id=str(uuid.uuid4()),
+                    user_id=sample_user.id,
+                    certificate_type='beginner',
+                    verification_id=verification_id,
+                    issued_at=datetime.utcnow(),
+                    user_full_name='Alex Vance',
+                    exam_score=96.5,
+                    is_valid=True,
+                    pdf_path=pdf_path
+                )
+                db.add(cert)
+                db.commit()
+                logger.info('Starter certificate record created and verified successfully.')
+            except Exception as cert_err:
+                logger.warning('Could not generate sample certificate during seeding: %s', cert_err)
+                db.rollback()
         else:
             logger.info('Starter certificate %s already exists in database. Skipping.', verification_id)
 
